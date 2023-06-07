@@ -121,7 +121,7 @@ load(paste0(input_dir, "/_intermediates/BIOMOD_data/", Taxon_name, "/BiomodData_
 
 # model fitting
 #tmp <- proc.time()[3]
-setwd(paste0(input_dir, "/", Taxon_name, "/BIOMOD_files/", Taxon_name))
+setwd(paste0(input_dir, "/_results/", Taxon_name))
 
 set.seed(32639)
 myBiomodModelOut <- biomod2::BIOMOD_Modeling(bm.format = myBiomodData,
@@ -153,4 +153,4 @@ myBiomodEM <- biomod2::BIOMOD_EnsembleModeling(bm.mod = myBiomodModelOut,
                                                var.import = 5)    #number of permutations to estimate variable importance
 #temp_model_time <- proc.time()[3] - tmp
 
-setwd(data_wd)
+setwd(input_dir)
