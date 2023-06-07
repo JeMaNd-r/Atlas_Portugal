@@ -7,7 +7,7 @@
 #SBATCH --mail-type=BEGIN,END,FAIL
 
 # module load foss/2020b R/4.0.4-2
-module load foss/2020b R/4.2.2
+module load foss/2022b R/4.2.2
 
 taxon_name="$1"
 species_csv="_intermediates/SDM_$taxon_name.csv"
