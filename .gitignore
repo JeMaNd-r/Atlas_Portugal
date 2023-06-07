@@ -52,3 +52,4 @@ rsconnect/
 *.pdf
 *.csv
 *.txt
+*.RData
