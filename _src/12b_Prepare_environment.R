@@ -83,7 +83,71 @@ pdf("D:/_students/Romy/Atlas_Portugal/_figures/Predictors_1km_POR_scaled.pdf")
 terra::plot(env_norm, maxnl = 30)
 dev.off()
 
+#- - - - - - - - - - - - - - - - - - - - - -
+## Perform PCA ####
 
+library(RStoolbox) # for PCA of rasters
+library(vegan) #for variance partitioning
+library(raster)
+
+# load env. stack
+env_norm <- raster::stack("D:/_students/Romy/Atlas_Portugal/_intermediates/EnvPredictor_1km_POR_normalized.tif")
+
+# run PCA
+Env_pca <- RStoolbox::rasterPCA(img = env_norm, 
+                                nSample = NULL, #use all pixels, not subset
+                                #nComp = nlayers(env_norm), #= default
+                                spca = FALSE, # don't standardize as variables are already standardized
+                                maskCheck = TRUE)
+save(Env_pca, file="_intermediates/EnvPredictor_PCA_1km_POR.RData")
+
+#Env_pca
+str(print(summary(Env_pca$model)))
+
+# get cumulative importance
+vars <- Env_pca$model$sdev^2
+vars <- vars/sum(vars)
+cumsum(vars)
+
+sink("_intermediates/PCA_EnvPredictor_1km_POR.txt")
+print(summary(Env_pca$model))
+print(loadings(Env_pca$model))
+sink()
+
+#load(paste0(data_wd, "/_intermediates/EnvPredictor_PCA.RData")) #Env_pca
+Env_pca
+
+Env_tif <- raster::stack(Env_pca$map)
+Env_tif
+
+# save PC axes
+Env_tif <- terra::rast(Env_tif)
+terra::writeRaster(Env_tif, "_intermediates/EnvPredictor_PCA_1km_POR.tif")
+
+# Env_df <- terra::as.data.frame(Env_clip) 
+# ggplot()+
+#   geom_point(data=Env_df %>% sample_n(100),
+#              aes(x=PCA_1, y=PCA_2))
+
+## Plot PCA ####
+# # Extract the necessary components
+# loadings <- Env_pca$model$loadings
+# sdev <- Env_pca$model$sdev
+# 
+# # Get the variable names
+# variable_names <- names(Env_clip)
+# 
+# # Set the dimension names of the loadings matrix
+# dimnames(loadings) <- list(variable_names, colnames(loadings))
+# 
+# # Flatten the raster data into a matrix
+# raster_data_matrix <- as.matrix(Env_clip)
+# 
+# # Calculate the scores by matrix multiplication
+# scores <- raster_data_matrix %*% t(loadings)
+# 
+# # Plot the biplot
+# biplot(loadings, scores, xlim = c(-max(sdev), max(sdev)), ylim = c(-max(sdev), max(sdev)), main = "Biplot")
 
 
 
