@@ -26,6 +26,8 @@ species_table <- read_csv(species_csv)
 task <- as.integer(Sys.getenv("SLURM_ARRAY_TASK_ID")) 
 species <- species_table$SpeciesID[task]
 
+covarsNames <- paste0("PC", 1:11)
+
 # define formula for GLM (and biomod)
 form <- paste0("occ ~ ", paste0(paste0("s(", covarsNames, ")"), collapse=" + "))
 

@@ -97,7 +97,7 @@ records_species %>% filter(occ>=100) %>% count() #0 species (max. 92)
 write_csv(records, file=paste0("_results/Occurrence_rasterized_1km_BIOMOD_", Taxon_name, ".csv"))
 
 ## Prepare species list
-species <- tibble(species = speciesSub)
+species <- tibble(SpeciesID = speciesSub)
 species #23
 
 write_csv(species, paste0("_intermediates/SDM_", Taxon_name, ".csv"))
