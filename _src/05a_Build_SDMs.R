@@ -127,13 +127,13 @@ set.seed(32639)
 myBiomodModelOut <- biomod2::BIOMOD_Modeling(bm.format = myBiomodData,
                                              models = mymodels,
                                              bm.options = mySDMOption,
-                                             nb.rep = 10,   # 10-fold crossvalidation evaluation run
-                                             data.split.perc = 80, # use subset of the data for training
-                                             weights = temp_weights$weight, # weight to observations, here based on year
+                                             CV.nb.rep = 10,   # 10-fold crossvalidation evaluation run
+                                             CV.perc = 80, # use subset of the data for training
+                                             #weights = temp_weights$weight, # weight to observations, here based on year
                                              metric.eval = "TSS",
-                                             save.output = TRUE, #save output on hard drive?
+                                             var.import = 0,
                                              scale.models = FALSE, #scale all predictions with binomial GLM?
-                                             do.full.models = FALSE, # do evaluation & calibration with whole dataset
+                                             CV.do.full.models = FALSE, # do evaluation & calibration with whole dataset
                                              modeling.id = paste(spID,"_Modeling", sep = ""))
 
 # ensemble modeling using mean probability
