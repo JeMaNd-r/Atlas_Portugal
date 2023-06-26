@@ -24,7 +24,7 @@ library(doParallel)
 # load number of occurrences per species and focal species names
 species_table <- read_csv(species_csv)
 task <- as.integer(Sys.getenv("SLURM_ARRAY_TASK_ID")) 
-species <- species_table$SpeciesID[task]
+spID <- species_table$SpeciesID[task]
 
 covarsNames <- paste0("PC", 1:11)
 
@@ -60,7 +60,7 @@ mySDMOption <- BIOMOD_ModelingOptions(
               nprune = 1+length(covarsNames), # max. number of terms including intercept
               pmethod = "backward" ), #pruning method
   
-  MAXENT = list(path_to_maxent.jar = paste0(output_dir, "/_results"), # change it to maxent directory
+  MAXENT = list(path_to_maxent.jar = paste0(input_dir, "/_results"), # change it to maxent directory
                 memory_allocated = NULL, # use default from Java defined above
                 visible = FALSE, 	# don't make maxEnt user interface visible
                 linear = TRUE, 	# linear features allowed
