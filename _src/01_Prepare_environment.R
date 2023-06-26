@@ -84,14 +84,52 @@ terra::plot(env_norm, maxnl = 30)
 dev.off()
 
 #- - - - - - - - - - - - - - - - - - - - - -
+## Calculate variable inflation factor (VIF) ####
+# VIF is the extent of correlation between one predictor and all others.
+# The lower VIF, the better we can tell what predictor contributed (most) to the model
+
+# load env. stack
+env_norm <- raster::stack("D:/_students/Romy/Atlas_Portugal/_intermediates/EnvPredictor_1km_POR_normalized.tif")
+
+## VIF basen on raw data (explanatory raster stack)
+env_vif <- usdm::vif(env_norm)
+
+# which predictors should be excluded?
+vif_cor <- usdm::vifcor(env_norm, th=0.8)  #th = threshold correlation for exclusion
+# how: first find a pair of variables which has the maximum linear correlation 
+# (greater than th), and exclude one of them which has greater VIF. The 
+# procedure is repeated until no variable with a high correlation coefficient 
+# (grater than threshold) with other variables remains.
+
+vif_step <- usdm::vifstep(env_norm, th=10) #VIF >10
+
+# merge both data.frames
+env_vif <- env_vif %>% rename("VIF_raw" = VIF) %>% full_join(vif_step@results) %>%
+  full_join(as.data.frame(vif_cor@corMatrix) %>% mutate("Variables"=rownames(vif_cor@corMatrix)))
+
+env_vif
+
+write_csv(env_vif, file="_results/VIF_predictors_1km_POR.csv")
+
+rm(env_vif, vif_cor)
+
+#- - - - - - - - - - - - - - - - - - - - - -
 ## Perform PCA ####
 
+# library(devtools)
+# install_github("bleutner/RStoolbox")
 library(RStoolbox) # for PCA of rasters
 library(vegan) #for variance partitioning
 library(raster)
 
+env_vif <- read_csv("_results/VIF_predictors_1km_POR.csv")
+
 # load env. stack
-env_norm <- raster::stack("D:/_students/Romy/Atlas_Portugal/_intermediates/EnvPredictor_1km_POR_normalized.tif")
+env_norm <- raster::stack("D:/EIE_Macroecology/_students/Romy/Atlas_Portugal/_intermediates/EnvPredictor_1km_POR_normalized.tif")
+
+env_exclude_vif <- env_vif %>% filter(is.na(VIF)) %>% pull(Variables) 
+env_norm <- raster::subset(env_norm, names(env_norm)[!(names(env_norm) %in% env_exclude_vif)])
+names(env_norm)
 
 # run PCA
 Env_pca <- RStoolbox::rasterPCA(img = env_norm, 
@@ -122,7 +160,7 @@ Env_tif
 
 # save PC axes
 Env_tif <- terra::rast(Env_tif)
-terra::writeRaster(Env_tif, "_intermediates/EnvPredictor_PCA_1km_POR.tif")
+terra::writeRaster(Env_tif, "_intermediates/EnvPredictor_PCA_1km_POR.tif") #, overwrite=TRUE
 
 # Env_df <- terra::as.data.frame(Env_clip) 
 # ggplot()+
