@@ -15,7 +15,7 @@ library(doParallel)
 
 # load environmental variables
 Env_clip <- terra::rast("_intermediates/EnvPredictor_PCA_1km_POR.tif")
-Env_clip <- terra::subset(Env_clip, 1:10)
+Env_clip <- terra::subset(Env_clip, 1:11) #11 = >80%
 
 Taxon_name <- "earthworms"
 
