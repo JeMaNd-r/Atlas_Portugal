@@ -63,3 +63,5 @@ _intermediates/Occurrences_filtered.csv
 _intermediates/VALID_Occurrence_rasterized_1km.csv
 _intermediates/VALID_Taxonomy_occurrences.csv
 _results/Occurrence_rasterized_1km_BIOMOD_earthworms.csv
+
+_results/_TopPredictor/
