@@ -37,10 +37,10 @@ Env_clip <- terra::subset(Env_clip, 1:11) #11 = >80%
 Env_clip_df <- terra::as.data.frame(Env_clip, xy=TRUE)
 
 registerDoParallel(3)
-foreach(spID = speciesSub,
-        .export = c("Env_clip"),
-        .packages = c("tidyverse","biomod2")) %dopar% { try({   
-          
+# foreach(spID = speciesSub,
+#         .export = c("Env_clip"),
+#         .packages = c("tidyverse","biomod2")) %dopar% { try({   
+for(spID in speciesSub){ try({     
           # list files in species-specific BIOMOD folder
           temp_files <- list.files(paste0("_results/", Taxon_name, "/", stringr::str_replace(spID, "_", ".")), full.names = TRUE)
           

@@ -30,9 +30,12 @@ covarsNames <- paste0("PC", 1:11)
 Env_clip <- terra::rast("_intermediates/EnvPredictor_PCA_1km_POR.tif")
 Env_clip <- terra::subset(Env_clip, 1:11) #11 = >80%
 
-Env_clip_df <- terra::as.data.frame(Env_clip, xy=TRUE)
+#Env_clip_df <- terra::as.data.frame(Env_clip, xy=TRUE)
 
-uncertain_df <- Env_clip_df %>% dplyr::select(x, y)
+#uncertain_df <- Env_clip_df %>% dplyr::select(x, y)
+uncertain_tif <- terra::rast(terra::ext(Env_clip), resolution=res(Env_clip)) 
+crs(uncertain_tif) <- crs(Env_clip)
+uncertain_tif
 
 for(spID in speciesSub){try({
   
@@ -58,27 +61,26 @@ for(spID in speciesSub){try({
   temp_prediction$layer <- temp_prediction$layer / 1000
   temp_prediction[,spID] <- temp_prediction$layer
           
+  temp_prediction <- terra::rast(temp_prediction[,c("x", "y", spID)])
+  
   # add layer to stack
-  uncertain_df <- full_join(uncertain_df, temp_prediction %>% dplyr::select(x,y, spID))
+  uncertain_tif <- c(uncertain_tif, temp_prediction)
  
 })}
 
-uncertain_df$Mean <- rowMeans(uncertain_df %>% dplyr::select(-x, -y), na.rm=T)
+uncertain_tif$Mean <- terra::app(uncertain_tif, mean, na.rm=TRUE)
+uncertain_tif$SD <- terra::app(uncertain_tif, sd, na.rm=TRUE)
 
-# calculate sd of predictions
-uncertain_df$SD <- apply(uncertain_df %>% dplyr::select(-x, -y, -Mean), 1, sd, na.rm = TRUE)
-
-head(uncertain_df)
+uncertain_tif
 
 # save species' uncertainty map
-save(uncertain_df, file=paste0("_results/", Taxon_name, "/SDM_Uncertainty_", Taxon_name, ".RData"))
-load(file=paste0("_results/", Taxon_name, "/SDM_Uncertainty_", Taxon_name, ".RData")) #uncertain_df
-
+terra::writeRaster(uncertain_tif, file=paste0("_results/", Taxon_name, "/SDM_Uncertainty_", Taxon_name, ".tif"))
+uncertain_tif <- terra::rast(paste0("_results/", Taxon_name, "/SDM_Uncertainty_", Taxon_name, ".tif"))
 
 # extract area with uncertainty lower than threshold
-summary(uncertain_df$Mean)
+summary(uncertain_tif$Mean) #3rd Qu. E: 0.3, N: 0.445
 
-extent_df <- uncertain_df %>% filter(Mean<0.1 & !is.na(Mean)) %>% dplyr::select(x,y)
+extent_df <- terra::as.data.frame(uncertain_tif, xy=TRUE) %>% filter(Mean<0.3 & !is.na(Mean)) %>% dplyr::select(x,y)
 save(extent_df, file=paste0("_results/SDM_Uncertainty_extent_", Taxon_name, ".RData"))
 
 

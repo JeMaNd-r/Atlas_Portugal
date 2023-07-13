@@ -572,21 +572,25 @@ pdf(paste0("_figures/VariableImportance_MaxEnt_", Taxon_name, ".pdf")); plotVarI
 load(file=paste0("_results/SDM_Uncertainty_extent_", Taxon_name, ".RData")) #extent_df
 
 # load uncertainty
-load(file=paste0("_results/", Taxon_name, "/SDM_Uncertainty_", Taxon_name, ".RData")) #uncertain_df
-
+uncertain_tif <- terra::rast(paste0("_results/", Taxon_name, "/SDM_Uncertainty_", Taxon_name, ".tif"))
 
 #- - - - - - - - - - - - - - - - - - - - - -
 ## Uncertainty ####
 #- - - - - - - - - - - - - - - - - - - - - -
 
+terra::plot(uncertain_tif$Mean)
+
 png(file=paste0("_figures/Uncertainty_", Taxon_name, ".png"), width=1000, height=1000)
 ggplot()+
-  #geom_map(data = world.inp, map = world.inp, aes(map_id = region), fill = "grey80") +
-  xlim(-10, -5) +
-  ylim(35, 45) +
+  #xlim(-10, -5) +
+  #ylim(40, 45) +
 
-  geom_tile(data=uncertain_df %>% filter(Mean!=0), aes(x=x, y=y, fill=Mean))+
+  geom_tile(data=uncertain_tif %>% terra::as.data.frame(xy=TRUE) %>% dplyr::select(x,y), aes(x=x, y=y))+
+  #geom_sf(uncertain_tif %>% filter(Mean!=0), aes(x=x, y=y, fill=Mean))+
   coord_map()+
+  geom_map(data = world.inp, map = world.inp, aes(map_id = region), fill = "grey80", color="white") +
+  geom_tile(data=uncertain_tif %>% terra::as.data.frame(xy=TRUE) %>% filter(Mean!=0), aes(x=x, y=y, fill=Mean))+
+  
   ggtitle("Coefficient of variation averaged across SDMs")+
   scale_fill_viridis_c(option="E")+
   theme_bw()+
@@ -638,17 +642,19 @@ dev.off()
 #         panel.background = element_blank())
 # dev.off()
 
-temp_thresh <- 0.1
-png(file=paste0(data_wd, "/_figures/Uncertainty_", temp_thresh, "_", Taxon_name, ".png"), width=1000, height=1000)
-ggplot()+
-  geom_map(data = world.inp, map = world.inp, aes(map_id = region), fill = "grey80") +
-  xlim(-10, 30) +
-  ylim(35, 70) +
+summary(uncertain_tif$Mean) #3rd Qu. E: 0.3, N: 0.445
 
-  geom_tile(data=uncertain_df %>% filter(Mean<temp_thresh), aes(x=x, y=y, fill=Mean))+
+temp_thresh <- 0.445
+png(file=paste0("_figures/Uncertainty_", temp_thresh, "_", Taxon_name, ".png"), width=1000, height=1000)
+ggplot()+
+  geom_tile(data=uncertain_tif %>% terra::as.data.frame(xy=TRUE), aes(x=x, y=y, fill=Mean))+
+  coord_map()+
+  geom_map(data = world.inp, map = world.inp, aes(map_id = region), fill = "grey80") +
+  geom_tile(data=uncertain_tif %>% terra::as.data.frame(xy=TRUE) %>% filter(Mean<temp_thresh), aes(x=x, y=y, fill=Mean))+
+  
   ggtitle("Coefficient of variation averaged across SDMs")+
   scale_fill_viridis_c(option="E")+
-  geom_tile(data=uncertain_df %>% filter(Mean>=temp_thresh), aes(x=x, y=y), fill="linen")+
+  geom_tile(data=uncertain_tif %>% terra::as.data.frame(xy=TRUE) %>% filter(Mean>=temp_thresh), aes(x=x, y=y), fill="linen")+
   theme_bw()+
   theme(axis.title = element_blank(), legend.title = element_blank(),
         legend.position =c(0.2, 0.85),legend.direction = "horizontal",
@@ -659,9 +665,9 @@ ggplot()+
         panel.border = element_blank(),
         panel.background = element_blank())
 dev.off()
-# 
-# 
-#- - - - - - - - - - - - - - - - - - - - - -
+
+
+# - - - - - - - - - - - - - - - - - - - - - -
 # ## Map species uncertainty maps ####
 # 
 # plots <- lapply(3:(ncol(uncertain_df)-2), function(s) {try({
@@ -711,116 +717,116 @@ dev.off()
 # png(file=paste0("_figures/Uncertainty_allSpecies_", Taxon_name, ".png"),width=3000, height=3000)
 # do.call(grid.arrange, plots2)
 # dev.off()
-# 
-# #- - - - - - - - - - - - - - - - - - - - - -
-# ## Species richness (current) ####
-# #- - - - - - - - - - - - - - - - - - - - - -
-# 
-# load(file=paste0(data_wd, "/_results/_Maps/SDM_stack_bestPrediction_binary_", Taxon_name, ".RData")) #species_stack
-# 
-# # Calculate area with 19 species
-# species_stack %>% filter(Richness==19 & !is.na(Richness)) %>% count()
-# species_stack %>% filter(Richness==18 & !is.na(Richness)) %>% count()
-# (species_stack %>% filter(Richness>=10 & !is.na(Richness)) %>% count())/nrow(species_stack)
-# (species_stack %>% filter(Richness>=15 & !is.na(Richness)) %>% count())/nrow(species_stack)
-# 
-# summary(species_stack$Richness)
-# sd(species_stack$Richness)
-# 
-# # extract most prominent species
-# View(as.data.frame(colSums(species_stack, na.rm=T)) %>% arrange(colSums(species_stack, na.rm=T)))
-# 
-# # species richness
-# world.inp <- map_data("world")
-# 
-# png(file=paste0(data_wd, "/_figures/SpeciesRichness_cert0.1_", Taxon_name, ".png"), width=1000, height=1000)
-# ggplot()+
-#   geom_map(data = world.inp, map = world.inp, aes(map_id = region), fill = "grey80") +
-#   xlim(-10, 30) +
-#   ylim(35, 70) +
-#   
-#   geom_tile(data=extent_df %>% inner_join(species_stack %>% filter(Richness>0), by=c("x","y")), 
-#             aes(x=x, y=y, fill=Richness))+
-#   ggtitle("Species richness (number of species)")+
-#   scale_fill_viridis_c()+
-#   geom_tile(data=extent_df %>% inner_join(species_stack %>% filter(Richness==0), by=c("x","y")), aes(x=x, y=y), fill="grey60")+
-#   theme_bw()+
-#   theme(axis.title = element_blank(), legend.title = element_blank(),
-#         legend.position =c(0.2, 0.85),legend.direction = "horizontal",
-#         axis.line = element_blank(), axis.text = element_blank(), axis.ticks = element_blank(),
-#         legend.text = element_text(size=30), legend.key.size = unit(2, 'cm'),
-#         panel.grid.major = element_blank(),
-#         panel.grid.minor = element_blank(),
-#         panel.border = element_blank(),
-#         panel.background = element_blank())
-# dev.off()
-# 
-# while (!is.null(dev.list()))  dev.off()
-# 
-# # Species richness >=18
-# ggplot()+
-#   geom_map(data = world.inp, map = world.inp, aes(map_id = region), fill = "grey80") +
-#   xlim(-10, 30) +
-#   ylim(35, 70) +
-#   
-#   geom_tile(data=extent_df %>% inner_join(species_stack %>% filter(Richness>0 & Richness>=18), by=c("x","y")), 
-#             aes(x=x, y=y, fill=Richness))+
-#   ggtitle("Species richness (number of species)")+
-#   scale_fill_viridis_c()+
-#   geom_tile(data=extent_df %>% inner_join(species_stack %>% filter(Richness==0), by=c("x","y")), aes(x=x, y=y), fill="grey60")+
-#   theme_bw()+
-#   theme(axis.title = element_blank(), legend.title = element_blank(),
-#         legend.position =c(0.2, 0.85),legend.direction = "horizontal",
-#         axis.line = element_blank(), axis.text = element_blank(), axis.ticks = element_blank(),
-#         legend.text = element_text(size=30), legend.key.size = unit(2, 'cm'),
-#         panel.grid.major = element_blank(),
-#         panel.grid.minor = element_blank(),
-#         panel.border = element_blank(),
-#         panel.background = element_blank())
-# 
-# #- - - - - - - - - - - - - - - - - - - - - -
-# ## Species distributions (current) ####
-# #- - - - - - - - - - - - - - - - - - - - - -
-# 
-# # map binary species distributions
-# plots <- lapply(3:(ncol(species_stack)-1), function(s) {try({
-#   print(s-2)
-#   temp_data <- extent_df %>% inner_join(species_stack[!is.na(species_stack[,s]),])
-#   ggplot()+
-#     geom_map(data = world.inp, map = world.inp, aes(map_id = region), fill = "grey80") +
-#     xlim(-10, 30) +
-#     ylim(35, 70) +
-#     
-#     geom_tile(data=temp_data, 
-#               aes(x=x, y=y, fill=as.factor(temp_data[,s])))+
-#     ggtitle(colnames(species_stack)[s])+
-#     scale_fill_manual(values=c("1"="#440154","0"="grey60","NA"="lightgrey"))+
-#     theme_bw()+
-#     guides(fill = guide_legend(# title.hjust = 1, # adjust title if needed
-#       label.position = "bottom",
-#       label.hjust = 0.5))+
-#     theme(axis.title = element_blank(), legend.title = element_blank(),
-#           legend.position = c(0.15,0.9), legend.direction = "horizontal",
-#           legend.key.size = unit(2, 'cm'),
-#           legend.text = element_text(size=40),
-#           title = element_text(size=50),
-#           axis.line = element_blank(), axis.text = element_blank(), axis.ticks = element_blank(),
-#           panel.grid.major = element_blank(),
-#           panel.grid.minor = element_blank(),
-#           panel.border = element_blank(),
-#           panel.background = element_blank())
-# })
-# })
-# 
-# require(gridExtra)
-# #pdf(file=paste0(data_wd, "/_figures/DistributionMap_bestBinary_", Taxon_name, ".pdf"))
-# png(file=paste0(data_wd, "/_figures/DistributionMap_bestBinary_cert0.1_", Taxon_name, ".png"),width=3000, height=3300)
-# do.call(grid.arrange, plots)
-# dev.off()
-# 
-# while (!is.null(dev.list()))  dev.off()
-# 
-# 
+
+#- - - - - - - - - - - - - - - - - - - - - -
+## Species richness (current) ####
+#- - - - - - - - - - - - - - - - - - - - - -
+
+load(file=paste0("_results/", Taxon_name, "/SDM_stack_bestPrediction_binary_", Taxon_name, ".RData")) #species_stack
+
+# Calculate area with 19 species
+summary(species_stack$Richness)
+sd(species_stack$Richness)
+
+species_stack %>% filter(Richness==5 & !is.na(Richness)) %>% count()
+species_stack %>% filter(Richness==4 & !is.na(Richness)) %>% count()
+#(species_stack %>% filter(Richness>=10 & !is.na(Richness)) %>% count())/nrow(species_stack)
+#(species_stack %>% filter(Richness>=15 & !is.na(Richness)) %>% count())/nrow(species_stack)
+
+# extract most prominent species
+View(as.data.frame(colSums(species_stack, na.rm=T)) %>% arrange(colSums(species_stack, na.rm=T)))
+
+# species richness
+
+png(file=paste0("_figures/SpeciesRichness_cert0.1_", Taxon_name, ".png"), width=1000, height=1000)
+ggplot()+
+  geom_tile(data=extent_df %>% mutate(x=round(x, 5), y=round(y,5)), aes(x,y))+
+  coord_map()+
+  geom_map(data = world.inp, map = world.inp, aes(map_id = region), fill = "grey80") +
+  geom_tile(data=extent_df %>% mutate(x=round(x, 5), y=round(y,5)) %>% 
+              inner_join(species_stack %>% mutate(x=round(x, 5), y=round(y,5)) %>% filter(Richness>0), by=c("x","y")),
+            aes(x=x, y=y, fill=Richness))+
+  
+  ggtitle("Species richness (number of species)")+
+  scale_fill_viridis_c()+
+  geom_tile(data=extent_df %>% inner_join(species_stack %>% filter(Richness==0), by=c("x","y")), aes(x=x, y=y), fill="grey60")+
+  theme_bw()+
+  theme(axis.title = element_blank(), legend.title = element_blank(),
+        legend.position ="bottom",legend.direction = "horizontal",
+        axis.line = element_blank(), axis.text = element_blank(), axis.ticks = element_blank(),
+        legend.text = element_text(size=30), legend.key.size = unit(2, 'cm'),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank())
+dev.off()
+
+while (!is.null(dev.list()))  dev.off()
+
+# Species richness >=18
+ggplot()+
+  geom_map(data = world.inp, map = world.inp, aes(map_id = region), fill = "grey80") +
+  xlim(-10, 30) +
+  ylim(35, 70) +
+
+  geom_tile(data=extent_df %>% inner_join(species_stack %>% filter(Richness>0 & Richness>=18), by=c("x","y")),
+            aes(x=x, y=y, fill=Richness))+
+  ggtitle("Species richness (number of species)")+
+  scale_fill_viridis_c()+
+  geom_tile(data=extent_df %>% inner_join(species_stack %>% filter(Richness==0), by=c("x","y")), aes(x=x, y=y), fill="grey60")+
+  theme_bw()+
+  theme(axis.title = element_blank(), legend.title = element_blank(),
+        legend.position =c(0.2, 0.85),legend.direction = "horizontal",
+        axis.line = element_blank(), axis.text = element_blank(), axis.ticks = element_blank(),
+        legend.text = element_text(size=30), legend.key.size = unit(2, 'cm'),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank())
+
+#- - - - - - - - - - - - - - - - - - - - - -
+## Species distributions (current) ####
+#- - - - - - - - - - - - - - - - - - - - - -
+
+# map binary species distributions
+plots <- lapply(3:(ncol(species_stack)-1), function(s) {try({
+  print(s-2)
+  temp_data <- extent_df %>% inner_join(species_stack[!is.na(species_stack[,s]),])
+  ggplot()+
+    geom_map(data = world.inp, map = world.inp, aes(map_id = region), fill = "grey80") +
+    xlim(-10, 30) +
+    ylim(35, 70) +
+
+    geom_tile(data=temp_data,
+              aes(x=x, y=y, fill=as.factor(temp_data[,s])))+
+    ggtitle(colnames(species_stack)[s])+
+    scale_fill_manual(values=c("1"="#440154","0"="grey60","NA"="lightgrey"))+
+    theme_bw()+
+    guides(fill = guide_legend(# title.hjust = 1, # adjust title if needed
+      label.position = "bottom",
+      label.hjust = 0.5))+
+    theme(axis.title = element_blank(), legend.title = element_blank(),
+          legend.position = c(0.15,0.9), legend.direction = "horizontal",
+          legend.key.size = unit(2, 'cm'),
+          legend.text = element_text(size=40),
+          title = element_text(size=50),
+          axis.line = element_blank(), axis.text = element_blank(), axis.ticks = element_blank(),
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          panel.border = element_blank(),
+          panel.background = element_blank())
+})
+})
+
+require(gridExtra)
+#pdf(file=paste0(data_wd, "/_figures/DistributionMap_bestBinary_", Taxon_name, ".pdf"))
+png(file=paste0(data_wd, "/_figures/DistributionMap_bestBinary_cert0.1_", Taxon_name, ".png"),width=3000, height=3300)
+do.call(grid.arrange, plots)
+dev.off()
+
+while (!is.null(dev.list()))  dev.off()
+
+
 # # #- - - - - - - - - - - - - - - - - - - - - -
 # # ## Species richness and species distributions (future) ####
 # # #- - - - - - - - - - - - - - - - - - - - - -
