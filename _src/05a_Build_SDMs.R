@@ -5,12 +5,22 @@
 #                                           #
 #- - - - - - - - - - - - - - - - - - - - - -#
 
-arguments <- commandArgs(trailingOnly = TRUE)
-Taxon_name <- arguments[1]
-species_csv <- arguments[2]
-output_dir <- arguments[3]
-input_dir <- "/data/soilbio"
+## FOR WORKING WITH HPC
+# arguments <- commandArgs(trailingOnly = TRUE)
+# Taxon_name <- arguments[1]
+# species_csv <- arguments[2]
+# output_dir <- arguments[3]
+# input_dir <- "/data/soilbio"
 
+## FOR "NORMAL" COMPUTER
+setwd("D:/EIE_Macroecology/_students/Romy/Atlas_Portugal")
+Taxon_name <- "nematodes"
+species_csv <- paste0("SDM_", Taxon_name, ".csv") 
+output_dir <- paste0(getwd(), "/_results")
+input_dir <- getwd()
+
+#- - - - - - - - - - - - - - - - - - - - -
+## Load packages ####
 library(tidyverse)
 
 library(raster)
@@ -21,15 +31,23 @@ library(parallel)
 library(doParallel)
 
 #- - - - - - - - - - - - - - - - - - - - -
-# load number of occurrences per species and focal species names
-species_table <- read_csv(species_csv)
-task <- as.integer(Sys.getenv("SLURM_ARRAY_TASK_ID")) 
-spID <- species_table$SpeciesID[task]
+## Load data ####
+
+# Load number of occurrences per species and focal species names
+# species_table <- read_csv(species_csv) #for HPC
+# task <- as.integer(Sys.getenv("SLURM_ARRAY_TASK_ID")) #for HPC
+# spID <- species_table$SpeciesID[task] #for HPC
+species_table <- read_csv(paste0(input_dir, "/_intermediates/", species_csv)) #for Computer
 
 covarsNames <- paste0("PC", 1:11)
 
 # define formula for GLM (and biomod)
 form <- paste0("occ ~ ", paste0(paste0("s(", covarsNames, ")"), collapse=" + "))
+
+# create subfolder if not existing
+if(!dir.exists(paste0("_results/", Taxon_name))){ 
+  dir.create(paste0("_results/", Taxon_name))
+}
 
 #- - - - - - - - - - - - - - - - - - - - -
 ## Build models ####
@@ -117,42 +135,99 @@ mySDMOption <- BIOMOD_ModelingOptions(
 mymodels <- c("GLM","GBM","GAM","CTA","ANN", "SRE", "FDA","MARS","RF","MAXENT")
 
 #- - - - - - - - - - - - - - - - - - - - -
-## Run SDM ####  
+## Run SDM #### 
 
-load(paste0(input_dir, "/_intermediates/BIOMOD_data/", Taxon_name, "/BiomodData_", Taxon_name,"_", spID, ".RData")) #myBiomodData
+## FOR COMPUTER
+for(spID in species_table$SpeciesID){
+  try({ #some species may fail due to low number of presences
 
-# model fitting
-#tmp <- proc.time()[3]
-setwd(paste0(input_dir, "/_results/", Taxon_name))
+    load(paste0(input_dir, "/_intermediates/BIOMOD_data/", Taxon_name, "/BiomodData_", Taxon_name,"_", spID, ".RData")) #myBiomodData
+    
+    # model fitting
+    #tmp <- proc.time()[3]
+    setwd(paste0(input_dir, "/_results/", Taxon_name))
+    
+    set.seed(32639)
+    myBiomodModelOut <- biomod2::BIOMOD_Modeling(bm.format = myBiomodData,
+                                                 models = mymodels,
+                                                 bm.options = mySDMOption,
+                                                 CV.nb.rep = 10,   # 10-fold crossvalidation evaluation run
+                                                 CV.perc = 0.8, # use subset of the data for training
+                                                 #weights = temp_weights$weight, # weight to observations, here based on year
+                                                 metric.eval = "TSS",
+                                                 var.import = 0,
+                                                 scale.models = FALSE, #scale all predictions with binomial GLM?
+                                                 CV.do.full.models = FALSE, # do evaluation & calibration with whole dataset
+                                                 modeling.id = paste(spID,"_Modeling", sep = ""))
+    
+    # ensemble modeling using mean probability
+    myBiomodEM <- biomod2::BIOMOD_EnsembleModeling(bm.mod = myBiomodModelOut,
+                                                   models.chosen = get_built_models(myBiomodModelOut),  # all working algorithms
+                                                   em.by = "all",    #evaluated over evaluation data if given (it is not, see Prepare_input.R)
+                                                   # note: evaluation not that important as we will calculate measures on independent data
+                                                   metric.select = "TSS", # 'all' would takes same as above in BIOMOD_Modelling
+                                                   metric.select.thresh = NULL, # since some species's auc are naturally low
+                                                   em.algo = c("EMcv", "EMwmean"),
+                                                   EMwmean.decay = "proportional", #the better a model (evaluation score), the higher weight
+                                                   var.import = 0)    #number of permutations to estimate variable importance
+    #temp_model_time <- proc.time()[3] - tmp
+    
+    setwd(input_dir)
+  })
+}
 
-set.seed(32639)
-myBiomodModelOut <- biomod2::BIOMOD_Modeling(bm.format = myBiomodData,
-                                             models = mymodels,
-                                             bm.options = mySDMOption,
-                                             CV.nb.rep = 10,   # 10-fold crossvalidation evaluation run
-                                             CV.perc = 80, # use subset of the data for training
-                                             #weights = temp_weights$weight, # weight to observations, here based on year
-                                             metric.eval = "TSS",
-                                             var.import = 0,
-                                             scale.models = FALSE, #scale all predictions with binomial GLM?
-                                             CV.do.full.models = FALSE, # do evaluation & calibration with whole dataset
-                                             modeling.id = paste(spID,"_Modeling", sep = ""))
 
-# ensemble modeling using mean probability
-myBiomodEM <- biomod2::BIOMOD_EnsembleModeling(bm.mod = myBiomodModelOut,
-                                               models.chosen = "all",  # all algorithms
-                                               em.by = "all",    #evaluated over evaluation data if given (it is not, see Prepare_input.R)
-                                               # note: evaluation not that important as we will calculate measures on independent data
-                                               metric.select = "TSS", # 'all' would takes same as above in BIOMOD_Modelling
-                                               metric.select.thresh = NULL, # since some species's auc are naturally low
-                                               #prob.mean = FALSE, #estimate mean probabilities across predictions
-                                               prob.cv = TRUE,   #estimate coefficient of variation across predictions
-                                               #prob.ci = FALSE,  #estimate confidence interval around the prob.mean
-                                               #prob.median = FALSE, #estimate the median of probabilities
-                                               #committee.averaging = TRUE, #estimate committee averaging across predictions
-                                               prob.mean.weight = TRUE, #estimate weighted sum of predictions
-                                               EMwmean.decay = "proportional", #the better a model (evaluation score), the higher weight
-                                               var.import = 5)    #number of permutations to estimate variable importance
-#temp_model_time <- proc.time()[3] - tmp
+## Extract names of working algorithms
+models <- tibble(data.frame("SpeciesID"="species",
+                            "GLM" = NA,
+                            "GBM" = NA,
+                            "GAM" = NA,
+                            "CTA" = NA,
+                            "ANN" = NA, 
+                            "SRE" = NA, 
+                            "FDA" = NA,
+                            "MARS" = NA,
+                            "RF" = NA,
+                            "MAXENT" = NA)[0,])
 
-setwd(input_dir)
+for(spID in species_table$SpeciesID){try({
+  
+  # list files in species-specific BIOMOD folder
+  temp_files <- list.files(paste0(output_dir, "/", Taxon_name, "/", stringr::str_replace(spID, "_", ".")), full.names = TRUE)
+  
+  # load model output
+  myBiomodModelOut <- temp_files[stringr::str_detect(temp_files,"Modeling.models.out")]
+  print(myBiomodModelOut)
+  myBiomodModelOut <-get(load(myBiomodModelOut))
+  
+  # get working algorithms used in Ensemble model
+  temp_models <- get_built_models(myBiomodModelOut)
+  
+  # extract simple algorithm names
+  n_name <- nchar(spID)
+  temp_models <- substring(temp_models, n_name+15, n_name+21) %>%
+    stringr::str_replace("_", "") %>%
+    unique()
+  
+  # transform to wide format (each algorithm one column)
+  temp_models <- data.frame("model" = temp_models, "check" = 1) %>% 
+    mutate("SpeciesID" = spID) %>%
+    pivot_wider(id_cols = "SpeciesID", names_from = "model", values_from = "check")
+  
+  models <- models %>% full_join(temp_models)
+})}
+
+models
+
+# add number of presences and absences
+records <- read_csv(file=paste0("_results/Occurrence_rasterized_1km_BIOMOD_", Taxon_name, ".csv"))
+records_species <- records %>% group_by(SpeciesID) %>% summarize(across("occ", sum)) %>%
+  full_join(records %>% filter(occ==0) %>% group_by(SpeciesID) %>% count(name="Absences"))
+records_species
+
+models <- models %>% full_join(records_species) %>%
+  rename("Presences" = occ) %>% 
+  arrange(SpeciesID)
+models
+
+write_csv(models, file=paste0("_results/Models_BIOMOD_", Taxon_name, ".csv"))
