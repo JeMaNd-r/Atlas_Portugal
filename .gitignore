@@ -65,3 +65,11 @@ _intermediates/VALID_Taxonomy_occurrences.csv
 _results/Occurrence_rasterized_1km_BIOMOD_earthworms.csv
 
 _results/_TopPredictor/
+_results/earthworms
+_results/nematodes
+*.png
+*.out
+*.eval
+_intermediates/Occurrence_rasterized_1km_nematodes.csv
+_results/maxent.jar
+_results/Occurrence_rasterized_1km_BIOMOD_nematodes.csv
