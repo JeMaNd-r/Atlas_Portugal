@@ -35,12 +35,12 @@ library(colorRamps) #color gradient in Supplementary figure
 
 #- - - - - - - - - - - - - - - - - - - - -
 Taxon_name <- "earthworms"
-speciesSub <- read.csv(file=paste0("_intermediates/SDM_", Taxon_name, ".csv"))
-speciesSub <- speciesSub %>% pull(SpeciesID)
+speciesSub <- read.csv(file=paste0("_intermediates/SDM_", Taxon_name, ".csv")) %>% pull(SpeciesID)
 speciesSub
 
-# geographic extent of Europe
-extent_Europe <- c(-23, 60, 31, 75)
+# geographic extent of Europe/Portugal
+#extent_Europe <- c(-23, 60, 31, 75)
+extent_Portugal <- c()
 
 # load background map
 world.inp <- map_data("world")
@@ -320,7 +320,7 @@ g_legend <- function(a.gplot){
 #- - - - - - - - - - - - - - - - - - - - -
 
 ## Visualize and get top 10
-var_imp <- read.csv(file=paste0("_results/Variable_importance_MaxEnt_noValid_", Taxon_name, ".csv"))
+var_imp <- read.csv(file=paste0("_results/Variable_importance_MaxEnt_", Taxon_name, ".csv"))
 var_imp
 
 # load predictor table to get classification of variables
@@ -359,7 +359,7 @@ plotVarImp <- ggplot()+
         legend.text = element_text(size=15), legend.title = element_blank(), legend.position = "none")
 plotVarImp
 
-pdf(paste0(data_wd, "/_figures/VariableImportance_MaxEnt_noValid_", Taxon_name, ".pdf")); plotVarImp; dev.off()
+pdf(paste0("_figures/VariableImportance_MaxEnt_", Taxon_name, ".pdf")); plotVarImp; dev.off()
 
 # ## [Supplementary Figure 4] stacked barplot all species
 # var_imp$Predictor <- factor(var_imp$Predictor, levels=c("MAP", "MAP_Seas", "MAT",
@@ -564,96 +564,72 @@ pdf(paste0(data_wd, "/_figures/VariableImportance_MaxEnt_noValid_", Taxon_name, 
 # 
 # 
 # 
-# #- - - - - - - - - - - - - - - - - - - - - -
-# ## Load UNCERTAINTY (relevant for all plots) ####
-# #- - - - - - - - - - - - - - - - - - - - - -
-# 
-# # load uncertainty extent for all maps
-# load(file=paste0(data_wd, "/_results/_Maps/SDM_Uncertainty_extent_", Taxon_name, ".RData")) #extent_df
-# 
-# # load uncertainty
-# load(file=paste0(data_wd, "/_results/_Maps/SDM_Uncertainty_", Taxon_name, ".RData")) #uncertain_df
-# 
-# 
-# #- - - - - - - - - - - - - - - - - - - - - -
-# ## Uncertainty ####
-# #- - - - - - - - - - - - - - - - - - - - - -
-# 
-# # view uncertainty in map 
-# world.inp <- map_data("world")
-# 
+#- - - - - - - - - - - - - - - - - - - - - -
+## Load UNCERTAINTY (relevant for all plots) ####
+#- - - - - - - - - - - - - - - - - - - - - -
+
+# load uncertainty extent for all maps
+load(file=paste0("_results/SDM_Uncertainty_extent_", Taxon_name, ".RData")) #extent_df
+
+# load uncertainty
+load(file=paste0("_results/", Taxon_name, "/SDM_Uncertainty_", Taxon_name, ".RData")) #uncertain_df
+
+
+#- - - - - - - - - - - - - - - - - - - - - -
+## Uncertainty ####
+#- - - - - - - - - - - - - - - - - - - - - -
+
+png(file=paste0("_figures/Uncertainty_", Taxon_name, ".png"), width=1000, height=1000)
+ggplot()+
+  #geom_map(data = world.inp, map = world.inp, aes(map_id = region), fill = "grey80") +
+  xlim(-10, -5) +
+  ylim(35, 45) +
+
+  geom_tile(data=uncertain_df %>% filter(Mean!=0), aes(x=x, y=y, fill=Mean))+
+  coord_map()+
+  ggtitle("Coefficient of variation averaged across SDMs")+
+  scale_fill_viridis_c(option="E")+
+  theme_bw()+
+
+  theme(axis.title = element_blank(), legend.title = element_blank(),
+        legend.position ="bottom",legend.direction = "horizontal",
+        axis.line = element_blank(), axis.text = element_blank(), axis.ticks = element_blank(),
+        legend.text = element_text(size=30), legend.key.size = unit(2, 'cm'),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank())
+dev.off()
+
+
+# # While scalebar in WGS84 makes no sence:
+# #https://stackoverflow.com/questions/41371170/ggsn-global-map-scale-bar-looks-wrong/41373569#41373569
+#
+# uncertain_st <- sf::st_multipoint(uncertain_df %>% dplyr::select(x,y,Mean) %>% as.matrix(), dim="XYZ")
+# uncertain_st <- raster::rasterFromXYZ(uncertain_df %>% dplyr::select(x,y,Mean))
+# uncertain_st <- raster::rasterToPolygons(uncertain_st)
+# uncertain_st <- sf::st_as_sf(uncertain_st)
+
 # png(file=paste0(data_wd, "/_figures/Uncertainty_", Taxon_name, ".png"), width=1000, height=1000)
 # ggplot()+
 #   geom_map(data = world.inp, map = world.inp, aes(map_id = region), fill = "grey80") +
 #   xlim(-10, 30) +
 #   ylim(35, 70) +
-#   
-#   geom_tile(data=uncertain_df %>% filter(Mean!=0), aes(x=x, y=y, fill=Mean))+
+#
+#   geom_sf(data=uncertain_st, aes(color=Mean))+
+#   scale_color_viridis_c(option="E")+
+#   north(x.min=-10, x.max=30, y.min=35, y.max=70, symbol=10,
+#         location = "topleft")+
+#   scalebar(x.min=-10, x.max=30, y.min=35, y.max=70,
+#            dist=500, dist_unit="km", st.bottom = TRUE,
+#           height=0.05,location = "bottomleft",
+#            transform = TRUE, model="WGS84")+
 #   ggtitle("Coefficient of variation averaged across SDMs")+
-#   scale_fill_viridis_c(option="E")+
-#   theme_bw()+  
-#   
-#   theme(axis.title = element_blank(), legend.title = element_blank(),
-#         legend.position =c(0.2, 0.85),legend.direction = "horizontal",
-#         axis.line = element_blank(), axis.text = element_blank(), axis.ticks = element_blank(),
-#         legend.text = element_text(size=30), legend.key.size = unit(2, 'cm'),
-#         panel.grid.major = element_blank(),
-#         panel.grid.minor = element_blank(),
-#         panel.border = element_blank(),
-#         panel.background = element_blank())
-# dev.off()
-# 
-# 
-# # # While scalebar in WGS84 makes no sence:
-# # #https://stackoverflow.com/questions/41371170/ggsn-global-map-scale-bar-looks-wrong/41373569#41373569
-# # 
-# # uncertain_st <- sf::st_multipoint(uncertain_df %>% dplyr::select(x,y,Mean) %>% as.matrix(), dim="XYZ")
-# # uncertain_st <- raster::rasterFromXYZ(uncertain_df %>% dplyr::select(x,y,Mean))
-# # uncertain_st <- raster::rasterToPolygons(uncertain_st)
-# # uncertain_st <- sf::st_as_sf(uncertain_st)
-# 
-# # png(file=paste0(data_wd, "/_figures/Uncertainty_", Taxon_name, ".png"), width=1000, height=1000)
-# # ggplot()+
-# #   geom_map(data = world.inp, map = world.inp, aes(map_id = region), fill = "grey80") +
-# #   xlim(-10, 30) +
-# #   ylim(35, 70) +
-# # 
-# #   geom_sf(data=uncertain_st, aes(color=Mean))+
-# #   scale_color_viridis_c(option="E")+
-# #   north(x.min=-10, x.max=30, y.min=35, y.max=70, symbol=10, 
-# #         location = "topleft")+
-# #   scalebar(x.min=-10, x.max=30, y.min=35, y.max=70, 
-# #            dist=500, dist_unit="km", st.bottom = TRUE,
-# #           height=0.05,location = "bottomleft",
-# #            transform = TRUE, model="WGS84")+
-# #   ggtitle("Coefficient of variation averaged across SDMs")+
-# # 
-# #   
-# #   theme_bw()+  
-# #   theme(axis.title = element_blank(), legend.title = element_blank(),
-# #         legend.position =c(0.2, 0.95), legend.direction = "horizontal",
-# #         axis.line = element_blank(), axis.text = element_blank(), axis.ticks = element_blank(),
-# #         legend.text = element_text(size=30), legend.key.size = unit(2, 'cm'),
-# #         panel.grid.major = element_blank(),
-# #         panel.grid.minor = element_blank(),
-# #         panel.border = element_blank(),
-# #         panel.background = element_blank())
-# # dev.off()
-# 
-# temp_thresh <- 0.1
-# png(file=paste0(data_wd, "/_figures/Uncertainty_", temp_thresh, "_", Taxon_name, ".png"), width=1000, height=1000)
-# ggplot()+
-#   geom_map(data = world.inp, map = world.inp, aes(map_id = region), fill = "grey80") +
-#   xlim(-10, 30) +
-#   ylim(35, 70) +
-#   
-#   geom_tile(data=uncertain_df %>% filter(Mean<temp_thresh), aes(x=x, y=y, fill=Mean))+
-#   ggtitle("Coefficient of variation averaged across SDMs")+
-#   scale_fill_viridis_c(option="E")+
-#   geom_tile(data=uncertain_df %>% filter(Mean>=temp_thresh), aes(x=x, y=y), fill="linen")+
+#
+#
 #   theme_bw()+
 #   theme(axis.title = element_blank(), legend.title = element_blank(),
-#         legend.position =c(0.2, 0.85),legend.direction = "horizontal",
+#         legend.position =c(0.2, 0.95), legend.direction = "horizontal",
 #         axis.line = element_blank(), axis.text = element_blank(), axis.ticks = element_blank(),
 #         legend.text = element_text(size=30), legend.key.size = unit(2, 'cm'),
 #         panel.grid.major = element_blank(),
@@ -661,9 +637,31 @@ pdf(paste0(data_wd, "/_figures/VariableImportance_MaxEnt_noValid_", Taxon_name, 
 #         panel.border = element_blank(),
 #         panel.background = element_blank())
 # dev.off()
+
+temp_thresh <- 0.1
+png(file=paste0(data_wd, "/_figures/Uncertainty_", temp_thresh, "_", Taxon_name, ".png"), width=1000, height=1000)
+ggplot()+
+  geom_map(data = world.inp, map = world.inp, aes(map_id = region), fill = "grey80") +
+  xlim(-10, 30) +
+  ylim(35, 70) +
+
+  geom_tile(data=uncertain_df %>% filter(Mean<temp_thresh), aes(x=x, y=y, fill=Mean))+
+  ggtitle("Coefficient of variation averaged across SDMs")+
+  scale_fill_viridis_c(option="E")+
+  geom_tile(data=uncertain_df %>% filter(Mean>=temp_thresh), aes(x=x, y=y), fill="linen")+
+  theme_bw()+
+  theme(axis.title = element_blank(), legend.title = element_blank(),
+        legend.position =c(0.2, 0.85),legend.direction = "horizontal",
+        axis.line = element_blank(), axis.text = element_blank(), axis.ticks = element_blank(),
+        legend.text = element_text(size=30), legend.key.size = unit(2, 'cm'),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank())
+dev.off()
 # 
 # 
-# #- - - - - - - - - - - - - - - - - - - - - -
+#- - - - - - - - - - - - - - - - - - - - - -
 # ## Map species uncertainty maps ####
 # 
 # plots <- lapply(3:(ncol(uncertain_df)-2), function(s) {try({
@@ -672,13 +670,13 @@ pdf(paste0(data_wd, "/_figures/VariableImportance_MaxEnt_noValid_", Taxon_name, 
 #     geom_map(data = world.inp, map = world.inp, aes(map_id = region), fill = "grey80") +
 #     xlim(-10, 30) +
 #     ylim(35, 70) +
-#     
-#     geom_tile(data=uncertain_df[!is.na(uncertain_df[,s]) & uncertain_df[,s]>0,], 
+# 
+#     geom_tile(data=uncertain_df[!is.na(uncertain_df[,s]) & uncertain_df[,s]>0,],
 #               aes(x=x, y=y, fill=uncertain_df[!is.na(uncertain_df[,s]),s]))+
 #     #ggtitle(colnames(uncertain_df)[s])+
 #     annotate(geom="text", x=-3, y=68, label=colnames(uncertain_df)[s], color="black", size=15)+
 #     scale_fill_viridis_c(option="E", limits = c(0,0.5))+
-#     geom_tile(data=uncertain_df[!is.na(uncertain_df[,s]) & uncertain_df[,s]>0.15,], 
+#     geom_tile(data=uncertain_df[!is.na(uncertain_df[,s]) & uncertain_df[,s]>0.15,],
 #               aes(x=x, y=y), fill="#FDE725FF")+
 #     theme_bw()+
 #     theme(axis.title = element_blank(), legend.title = element_blank(),
@@ -691,7 +689,7 @@ pdf(paste0(data_wd, "/_figures/VariableImportance_MaxEnt_noValid_", Taxon_name, 
 # })
 # })
 # 
-# legend <- g_legend(ggplot(data=uncertain_df[!is.na(uncertain_df[,3]) & uncertain_df[,3]>0,], 
+# legend <- g_legend(ggplot(data=uncertain_df[!is.na(uncertain_df[,3]) & uncertain_df[,3]>0,],
 #                           aes(x=x, y=y, fill=uncertain_df[!is.na(uncertain_df[,3]),3]))+
 #                      geom_tile()+
 #                      scale_fill_viridis_c(option="E", limits = c(0,0.15))+
@@ -703,14 +701,14 @@ pdf(paste0(data_wd, "/_figures/VariableImportance_MaxEnt_noValid_", Taxon_name, 
 #                            panel.grid.major = element_blank(),
 #                            panel.grid.minor = element_blank(),
 #                            panel.border = element_blank(),
-#                            panel.background = element_blank())) 
+#                            panel.background = element_blank()))
 # 
 # plots2 <- c(plots, list(legend))
 # 
 # 
 # require(gridExtra)
-# #pdf(file=paste0(data_wd, "/_figures/Uncertainty_allSpecies_", Taxon_name, ".pdf"))
-# png(file=paste0(data_wd, "/_figures/Uncertainty_allSpecies_", Taxon_name, ".png"),width=3000, height=3000)
+# #pdf(file=paste0("_figures/Uncertainty_allSpecies_", Taxon_name, ".pdf"))
+# png(file=paste0("_figures/Uncertainty_allSpecies_", Taxon_name, ".png"),width=3000, height=3000)
 # do.call(grid.arrange, plots2)
 # dev.off()
 # 
