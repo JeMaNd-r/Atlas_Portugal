@@ -31,7 +31,7 @@ library(rJava)
 # change temporary directory for files
 #raster::rasterOptions(tmpdir = "D:/00_datasets/Trash")
 
-Taxon_name <- "earthworms"
+Taxon_name <- "nematodes"
 
 # load number of occurrences per species and focal species names
 speciesSub <- read.csv(file=paste0("_intermediates/SDM_", Taxon_name, ".csv"))

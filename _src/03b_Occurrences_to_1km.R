@@ -11,12 +11,14 @@ library(terra)
 
 #- - - - - - - - - - - - - - - - - - - - -
 ## load grid
-r <- terra::rast("D:/_students/Romy/Atlas_Portugal/_intermediates/EnvPredictor_1km_POR_normalized.tif")
+r <- terra::rast("D:/EIE_Macroecology/_students/Romy/Atlas_Portugal/_intermediates/EnvPredictor_1km_POR_normalized.tif")
 r <- r[[1]]
 r
 
+Taxon_name <- "nematodes"
+
 ## Load occurrence data
-occ <- read.csv("_intermediates/Occurrences_clean_earthworms.csv")
+occ <- read.csv(paste0("_intermediates/Occurrences_clean_", Taxon_name, ".csv"))
 occ <- occ %>%
   mutate("Presence" = ifelse(Abundance>0, 1, 0))
 
@@ -63,11 +65,11 @@ for(spID in unique(occ$SpeciesID)){
 }
 
 # save point data frame
-write_csv(occ_points, file="_intermediates/Occurrence_rasterized_1km_earthworms.csv")
+write_csv(occ_points, file=paste0("_intermediates/Occurrence_rasterized_1km_", Taxon_name, ".csv"))
 
-nrow(occ_points) #92?
-ggplot()+
-  geom_tile(data = terra::as.data.frame(r, xy=TRUE), aes(x=x, y=y), fill="white", color="grey")+
-  geom_point(data = occ_points, aes(x=x, y=y), size=4)+
-  geom_point(data = occ, aes(x=x, y=y, color="raw"))
+# nrow(occ_points) #92?
+# ggplot()+
+#   geom_tile(data = terra::as.data.frame(r, xy=TRUE), aes(x=x, y=y), fill="white", color="grey")+
+#   geom_point(data = occ_points, aes(x=x, y=y), size=4)+
+#   geom_point(data = occ, aes(x=x, y=y, color="raw"))
 

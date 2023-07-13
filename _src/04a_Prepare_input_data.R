@@ -17,7 +17,7 @@ library(doParallel)
 Env_clip <- terra::rast("_intermediates/EnvPredictor_PCA_1km_POR.tif")
 Env_clip <- terra::subset(Env_clip, 1:11) #11 = >80%
 
-Taxon_name <- "earthworms"
+Taxon_name <- "nematodes"
 
 #- - - - - - - - - - - - - - - - - - - - -
 ## Prepare data ####
@@ -83,9 +83,9 @@ for(spID in speciesSub){ try({
 }
 
 head(records)
-nrow(records) # Crassiclitellata: 2,093
-nrow(records %>% filter(occ==1)) # 171
-nrow(records %>% filter(occ==0)) # 1922
+nrow(records) # Crassiclitellata: 2,093, nematoda: 17,211
+nrow(records %>% filter(occ==1)) # 171; N: 5630
+nrow(records %>% filter(occ==0)) # 1,922; N: 11,581
 
 records_species <- records %>% group_by(SpeciesID) %>% summarize(across("occ", sum)) %>%
   full_join(records %>% filter(occ==0) %>% group_by(SpeciesID) %>% count(name="Absences"))
@@ -98,7 +98,7 @@ write_csv(records, file=paste0("_results/Occurrence_rasterized_1km_BIOMOD_", Tax
 
 ## Prepare species list
 species <- tibble(SpeciesID = speciesSub)
-species #23
+species #23; N: 44
 
 write_csv(species, paste0("_intermediates/SDM_", Taxon_name, ".csv"))
 
