@@ -738,7 +738,7 @@ View(as.data.frame(colSums(species_stack, na.rm=T)) %>% arrange(colSums(species_
 
 # species richness
 
-png(file=paste0("_figures/SpeciesRichness_cert0.1_", Taxon_name, ".png"), width=1000, height=1000)
+png(file=paste0("_figures/SpeciesRichness_cert0.3_", Taxon_name, ".png"), width=1000, height=1000)
 ggplot()+
   geom_tile(data=extent_df %>% mutate(x=round(x, 5), y=round(y,5)), aes(x,y))+
   coord_map()+
