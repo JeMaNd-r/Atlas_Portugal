@@ -89,23 +89,24 @@ dev.off()
 # The lower VIF, the better we can tell what predictor contributed (most) to the model
 
 # load env. stack
-env_norm <- raster::stack("D:/_students/Romy/Atlas_Portugal/_intermediates/EnvPredictor_1km_POR_normalized.tif")
+env_norm <- raster::stack("D:/EIE_Macroecology/_students/Romy/Atlas_Portugal/_intermediates/EnvPredictor_1km_POR_normalized.tif")
 
 ## VIF basen on raw data (explanatory raster stack)
 env_vif <- usdm::vif(env_norm)
 
-# which predictors should be excluded?
-vif_cor <- usdm::vifcor(env_norm, th=0.8)  #th = threshold correlation for exclusion
-# how: first find a pair of variables which has the maximum linear correlation 
-# (greater than th), and exclude one of them which has greater VIF. The 
-# procedure is repeated until no variable with a high correlation coefficient 
-# (grater than threshold) with other variables remains.
+# # which predictors should be excluded?
+# vif_cor <- usdm::vifcor(env_norm, th=0.8)  #th = threshold correlation for exclusion
+# # how: first find a pair of variables which has the maximum linear correlation 
+# # (greater than th), and exclude one of them which has greater VIF. The 
+# # procedure is repeated until no variable with a high correlation coefficient 
+# # (grater than threshold) with other variables remains.
 
 vif_step <- usdm::vifstep(env_norm, th=10) #VIF >10
 
 # merge both data.frames
-env_vif <- env_vif %>% rename("VIF_raw" = VIF) %>% full_join(vif_step@results) %>%
-  full_join(as.data.frame(vif_cor@corMatrix) %>% mutate("Variables"=rownames(vif_cor@corMatrix)))
+env_vif <- env_vif %>% rename("VIF_raw" = VIF) %>% 
+  full_join(vif_step@results) #%>%
+  #full_join(as.data.frame(vif_cor@corMatrix) %>% mutate("Variables"=rownames(vif_cor@corMatrix)))
 
 env_vif
 
