@@ -80,7 +80,10 @@ uncertain_tif <- terra::rast(paste0("_results/", Taxon_name, "/SDM_Uncertainty_"
 # extract area with uncertainty lower than threshold
 summary(uncertain_tif$Mean) #3rd Qu. E: 0.3, N: 0.445
 
-extent_df <- terra::as.data.frame(uncertain_tif, xy=TRUE) %>% filter(Mean<0.3 & !is.na(Mean)) %>% dplyr::select(x,y)
+uncertain_thresh <- stats::quantile(uncertain_tif$Mean, 0.9, na.rm=TRUE)
+# 0.9-quantile E:0.326, N: 0.472
+
+extent_df <- terra::as.data.frame(uncertain_tif, xy=TRUE) %>% filter(Mean<uncertain_thresh & !is.na(Mean)) %>% dplyr::select(x,y)
 save(extent_df, file=paste0("_results/SDM_Uncertainty_extent_", Taxon_name, ".RData"))
 
 

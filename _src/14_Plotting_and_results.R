@@ -574,6 +574,9 @@ load(file=paste0("_results/SDM_Uncertainty_extent_", Taxon_name, ".RData")) #ext
 # load uncertainty
 uncertain_tif <- terra::rast(paste0("_results/", Taxon_name, "/SDM_Uncertainty_", Taxon_name, ".tif"))
 
+# save threshold for uncertainty
+uncertain_thresh <- stats::quantile(uncertain_tif$Mean, 0.9, na.rm=TRUE)
+
 #- - - - - - - - - - - - - - - - - - - - - -
 ## Uncertainty ####
 #- - - - - - - - - - - - - - - - - - - - - -
@@ -644,17 +647,16 @@ dev.off()
 
 summary(uncertain_tif$Mean) #3rd Qu. E: 0.3, N: 0.445
 
-temp_thresh <- 0.445
-png(file=paste0("_figures/Uncertainty_", temp_thresh, "_", Taxon_name, ".png"), width=1000, height=1000)
+png(file=paste0("_figures/Uncertainty_", round(uncertain_thresh,3), "_", Taxon_name, ".png"), width=1000, height=1000)
 ggplot()+
   geom_tile(data=uncertain_tif %>% terra::as.data.frame(xy=TRUE), aes(x=x, y=y, fill=Mean))+
   coord_map()+
   geom_map(data = world.inp, map = world.inp, aes(map_id = region), fill = "grey80") +
-  geom_tile(data=uncertain_tif %>% terra::as.data.frame(xy=TRUE) %>% filter(Mean<temp_thresh), aes(x=x, y=y, fill=Mean))+
+  geom_tile(data=uncertain_tif %>% terra::as.data.frame(xy=TRUE) %>% filter(Mean<uncertain_thresh), aes(x=x, y=y, fill=Mean))+
   
   ggtitle("Coefficient of variation averaged across SDMs")+
   scale_fill_viridis_c(option="E")+
-  geom_tile(data=uncertain_tif %>% terra::as.data.frame(xy=TRUE) %>% filter(Mean>=temp_thresh), aes(x=x, y=y), fill="linen")+
+  geom_tile(data=uncertain_tif %>% terra::as.data.frame(xy=TRUE) %>% filter(Mean>=uncertain_thresh), aes(x=x, y=y), fill="linen")+
   theme_bw()+
   theme(axis.title = element_blank(), legend.title = element_blank(),
         legend.position =c(0.2, 0.85),legend.direction = "horizontal",
@@ -667,56 +669,26 @@ ggplot()+
 dev.off()
 
 
-# - - - - - - - - - - - - - - - - - - - - - -
-# ## Map species uncertainty maps ####
-# 
-# plots <- lapply(3:(ncol(uncertain_df)-2), function(s) {try({
-#   print(s-2)
-#   ggplot()+
-#     geom_map(data = world.inp, map = world.inp, aes(map_id = region), fill = "grey80") +
-#     xlim(-10, 30) +
-#     ylim(35, 70) +
-# 
-#     geom_tile(data=uncertain_df[!is.na(uncertain_df[,s]) & uncertain_df[,s]>0,],
-#               aes(x=x, y=y, fill=uncertain_df[!is.na(uncertain_df[,s]),s]))+
-#     #ggtitle(colnames(uncertain_df)[s])+
-#     annotate(geom="text", x=-3, y=68, label=colnames(uncertain_df)[s], color="black", size=15)+
-#     scale_fill_viridis_c(option="E", limits = c(0,0.5))+
-#     geom_tile(data=uncertain_df[!is.na(uncertain_df[,s]) & uncertain_df[,s]>0.15,],
-#               aes(x=x, y=y), fill="#FDE725FF")+
-#     theme_bw()+
-#     theme(axis.title = element_blank(), legend.title = element_blank(),
-#           legend.position = "none", legend.direction = "horizontal",
-#           axis.line = element_blank(), axis.text = element_blank(), axis.ticks = element_blank(),
-#           panel.grid.major = element_blank(),
-#           panel.grid.minor = element_blank(),
-#           panel.border = element_blank(),
-#           panel.background = element_blank())
-# })
-# })
-# 
-# legend <- g_legend(ggplot(data=uncertain_df[!is.na(uncertain_df[,3]) & uncertain_df[,3]>0,],
-#                           aes(x=x, y=y, fill=uncertain_df[!is.na(uncertain_df[,3]),3]))+
-#                      geom_tile()+
-#                      scale_fill_viridis_c(option="E", limits = c(0,0.15))+
-#                      theme_bw()+
-#                      theme(axis.title = element_blank(), legend.title = element_blank(),
-#                            legend.position = c(0.5, 0.5), legend.direction = "horizontal",
-#                            legend.text = element_text(size=50), legend.key.size = unit(4, 'cm'),
-#                            axis.line = element_blank(), axis.text = element_blank(), axis.ticks = element_blank(),
-#                            panel.grid.major = element_blank(),
-#                            panel.grid.minor = element_blank(),
-#                            panel.border = element_blank(),
-#                            panel.background = element_blank()))
-# 
-# plots2 <- c(plots, list(legend))
-# 
-# 
-# require(gridExtra)
-# #pdf(file=paste0("_figures/Uncertainty_allSpecies_", Taxon_name, ".pdf"))
-# png(file=paste0("_figures/Uncertainty_allSpecies_", Taxon_name, ".png"),width=3000, height=3000)
-# do.call(grid.arrange, plots2)
-# dev.off()
+- - - - - - - - - - - - - - - - - - - - - -
+## Map species uncertainty maps ####
+
+names(uncertain_tif)
+max(uncertain_tif)
+min(uncertain_tif)
+
+#pdf(file=paste0("_figures/Uncertainty_allSpecies_", Taxon_name, ".pdf"))
+png(file=paste0("_figures/Uncertainty_allSpecies_", Taxon_name, ".png"),width=3000, height=3000)
+terra::plot(terra::subset(uncertain_tif, 1:39), maxnl=100,
+            plg=list( # parameters for drawing legend
+              title = "",
+              title.cex = 2, # Legend title size
+              cex = 4 # Legend text size
+            ), 
+            cex.main = 6, # Title text size
+            range = c(0, 1),
+            axes = FALSE,
+            legend = "bottom")
+dev.off()
 
 #- - - - - - - - - - - - - - - - - - - - - -
 ## Species richness (current) ####
@@ -738,7 +710,7 @@ View(as.data.frame(colSums(species_stack, na.rm=T)) %>% arrange(colSums(species_
 
 # species richness
 
-png(file=paste0("_figures/SpeciesRichness_cert0.3_", Taxon_name, ".png"), width=1000, height=1000)
+png(file=paste0("_figures/SpeciesRichness_cert", round(uncertain_thresh, 3), "_", Taxon_name, ".png"), width=1000, height=1000)
 ggplot()+
   geom_tile(data=extent_df %>% mutate(x=round(x, 5), y=round(y,5)), aes(x,y))+
   coord_map()+
@@ -749,7 +721,8 @@ ggplot()+
   
   ggtitle("Species richness (number of species)")+
   scale_fill_viridis_c()+
-  geom_tile(data=extent_df %>% inner_join(species_stack %>% filter(Richness==0), by=c("x","y")), aes(x=x, y=y), fill="grey60")+
+  geom_tile(data=extent_df  %>% mutate(x=round(x, 5), y=round(y,5)) %>% 
+              inner_join(species_stack  %>% mutate(x=round(x, 5), y=round(y,5)) %>% filter(Richness==0), by=c("x","y")), aes(x=x, y=y), fill="grey60")+
   theme_bw()+
   theme(axis.title = element_blank(), legend.title = element_blank(),
         legend.position ="bottom",legend.direction = "horizontal",
@@ -763,26 +736,26 @@ dev.off()
 
 while (!is.null(dev.list()))  dev.off()
 
-# Species richness >=18
-ggplot()+
-  geom_map(data = world.inp, map = world.inp, aes(map_id = region), fill = "grey80") +
-  xlim(-10, 30) +
-  ylim(35, 70) +
-
-  geom_tile(data=extent_df %>% inner_join(species_stack %>% filter(Richness>0 & Richness>=18), by=c("x","y")),
-            aes(x=x, y=y, fill=Richness))+
-  ggtitle("Species richness (number of species)")+
-  scale_fill_viridis_c()+
-  geom_tile(data=extent_df %>% inner_join(species_stack %>% filter(Richness==0), by=c("x","y")), aes(x=x, y=y), fill="grey60")+
-  theme_bw()+
-  theme(axis.title = element_blank(), legend.title = element_blank(),
-        legend.position =c(0.2, 0.85),legend.direction = "horizontal",
-        axis.line = element_blank(), axis.text = element_blank(), axis.ticks = element_blank(),
-        legend.text = element_text(size=30), legend.key.size = unit(2, 'cm'),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.border = element_blank(),
-        panel.background = element_blank())
+# # Species richness >=18
+# ggplot()+
+#   geom_map(data = world.inp, map = world.inp, aes(map_id = region), fill = "grey80") +
+#   xlim(-10, 30) +
+#   ylim(35, 70) +
+# 
+#   geom_tile(data=extent_df %>% inner_join(species_stack %>% filter(Richness>0 & Richness>=18), by=c("x","y")),
+#             aes(x=x, y=y, fill=Richness))+
+#   ggtitle("Species richness (number of species)")+
+#   scale_fill_viridis_c()+
+#   geom_tile(data=extent_df %>% inner_join(species_stack %>% filter(Richness==0), by=c("x","y")), aes(x=x, y=y), fill="grey60")+
+#   theme_bw()+
+#   theme(axis.title = element_blank(), legend.title = element_blank(),
+#         legend.position =c(0.2, 0.85),legend.direction = "horizontal",
+#         axis.line = element_blank(), axis.text = element_blank(), axis.ticks = element_blank(),
+#         legend.text = element_text(size=30), legend.key.size = unit(2, 'cm'),
+#         panel.grid.major = element_blank(),
+#         panel.grid.minor = element_blank(),
+#         panel.border = element_blank(),
+#         panel.background = element_blank())
 
 #- - - - - - - - - - - - - - - - - - - - - -
 ## Species distributions (current) ####
@@ -791,15 +764,17 @@ ggplot()+
 # map binary species distributions
 plots <- lapply(3:(ncol(species_stack)-1), function(s) {try({
   print(s-2)
-  temp_data <- extent_df %>% inner_join(species_stack[!is.na(species_stack[,s]),])
+  temp_data <- extent_df %>% mutate(x=round(x, 5), y=round(y,5)) %>% 
+    inner_join(species_stack[!is.na(species_stack[,s]),])
   ggplot()+
+    geom_tile(data=temp_data,
+              aes(x=x, y=y))+
+    coord_map()+
+    ggtitle(colnames(species_stack)[s])+
     geom_map(data = world.inp, map = world.inp, aes(map_id = region), fill = "grey80") +
-    xlim(-10, 30) +
-    ylim(35, 70) +
-
     geom_tile(data=temp_data,
               aes(x=x, y=y, fill=as.factor(temp_data[,s])))+
-    ggtitle(colnames(species_stack)[s])+
+    
     scale_fill_manual(values=c("1"="#440154","0"="grey60","NA"="lightgrey"))+
     theme_bw()+
     guides(fill = guide_legend(# title.hjust = 1, # adjust title if needed
@@ -819,8 +794,8 @@ plots <- lapply(3:(ncol(species_stack)-1), function(s) {try({
 })
 
 require(gridExtra)
-#pdf(file=paste0(data_wd, "/_figures/DistributionMap_bestBinary_", Taxon_name, ".pdf"))
-png(file=paste0(data_wd, "/_figures/DistributionMap_bestBinary_cert0.1_", Taxon_name, ".png"),width=3000, height=3300)
+#pdf(file=paste0("_figures/SpeciesDist_bestBinary_", Taxon_name, ".pdf"))
+png(file=paste0("_figures/SpeciesDist_bestBinary_", Taxon_name, ".png"), width=3000, height=3300)
 do.call(grid.arrange, plots)
 dev.off()
 
