@@ -365,7 +365,7 @@ plotVarImp <- ggplot()+
         legend.text = element_text(size=15), legend.title = element_blank(), legend.position = "none")
 plotVarImp
 
-pdf(paste0("_figures/VariableImportance_MaxEnt_", Taxon_name, ".pdf")); plotVarImp; dev.off()
+png(paste0("_figures/VariableImportance_MaxEnt_", Taxon_name, ".png")); plotVarImp; dev.off()
 
 ## [Supplementary Figure 4] stacked barplot all species
 var_imp$Predictor <- factor(var_imp$Predictor, levels=c("MAP", "MAP_Seas", "MAT", "Snow",
