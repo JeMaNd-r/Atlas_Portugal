@@ -73,3 +73,8 @@ _results/nematodes
 _intermediates/Occurrence_rasterized_1km_nematodes.csv
 _results/maxent.jar
 _results/Occurrence_rasterized_1km_BIOMOD_nematodes.csv
+*.lines
+*.data
+*.options
+*.evaluation
+*.prediction
