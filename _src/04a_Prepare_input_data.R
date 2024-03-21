@@ -17,7 +17,7 @@ library(doParallel)
 Env_clip <- terra::rast("_intermediates/EnvPredictor_PCA_1km_POR.tif")
 Env_clip <- terra::subset(Env_clip, 1:11) #11 = >80%
 
-Taxon_name <- "nematodes"
+Taxon_name <- "Nematodes"
 
 #- - - - - - - - - - - - - - - - - - - - -
 ## Prepare data ####
@@ -43,15 +43,27 @@ for(spID in speciesSub){
           
           myResp <- mySpeciesOcc[!is.na(mySpeciesOcc[,spID]), c("x","y",spID)]
           
-          myBiomodData <- biomod2::BIOMOD_FormatingData(resp.var = myResp %>% pull(spID) %>% as.numeric(),
-                                                        expl.var = Env_clip,
-                                                        resp.xy = myResp[,c("x", "y")],
-                                                        resp.name = spID,
-                                                        PA.nb.rep = 0,
-                                                        #PA.nb.absences = 10000,
-                                                        #PA.strategy = "random"
-                                                        )
-          
+          if(myResp[myResp[,spID]==0,] %>% nrow() < 
+             myResp[myResp[,spID]==1,] %>% nrow()){
+            myBiomodData <- biomod2::BIOMOD_FormatingData(resp.var = myResp[myResp[,spID]!=0,] %>% pull(spID) %>% as.numeric(),
+                                                          expl.var = Env_clip,
+                                                          resp.xy = myResp[myResp[,spID]!=0,c("x", "y")],
+                                                          resp.name = spID,
+                                                          PA.nb.rep = 1,
+                                                          PA.nb.absences = 1000, # not needed because true absence data available
+                                                          PA.strategy = "random"
+            )
+          }else{
+            
+            myBiomodData <- biomod2::BIOMOD_FormatingData(resp.var = myResp %>% pull(spID) %>% as.numeric(),
+                                                          expl.var = Env_clip,
+                                                          resp.xy = myResp[,c("x", "y")],
+                                                          resp.name = spID,
+                                                          PA.nb.rep = 0,
+                                                          #PA.nb.absences = 10000, # not needed because true absence data available
+                                                          #PA.strategy = "random"
+                                                          )
+          }
           # save data
           save(myBiomodData, file=paste0("_intermediates/BIOMOD_data/", Taxon_name, "/BiomodData_", Taxon_name,"_", spID, ".RData"))
           
@@ -76,7 +88,7 @@ for(spID in speciesSub){ try({
   myData <- cbind(myBiomodData@data.species, myBiomodData@coord, myBiomodData@data.env.var)
   myData$SpeciesID <- spID
   myData <- myData %>% rename("occ" = "myBiomodData@data.species")
-  myData[is.na(myData$occ),"occ"] <- 0
+  myData[is.na(myData$occ),"occ"] <- 0 #replace pseudo (NA) by 0
   
   records <- rbind(records, myData[,c("x", "y","occ", "SpeciesID")])
 })
@@ -88,21 +100,26 @@ nrow(records %>% filter(occ==1)) # 171; N: 5630
 nrow(records %>% filter(occ==0)) # 1,922; N: 11,581
 
 records_species <- records %>% group_by(SpeciesID) %>% summarize(across("occ", sum)) %>%
-  full_join(records %>% filter(occ==0) %>% group_by(SpeciesID) %>% count(name="Absences"))
+  full_join(records %>% filter(occ==0) %>% group_by(SpeciesID) %>% count(name="Absences")) 
 records_species
 
-records_species %>% filter(occ>=10) %>% count() #5 species
-records_species %>% filter(occ>=100) %>% count() #0 species (max. 92)
+records_species %>% filter(occ>=10) %>% count() # C: 5 species, N: 36
+records_species %>% filter(occ>=100) %>% count() # C: 0 species (max. occ=92), N: 21 
 
 write_csv(records, file=paste0("_results/Occurrence_rasterized_1km_BIOMOD_", Taxon_name, ".csv"))
 records <- read_csv(file=paste0("_results/Occurrence_rasterized_1km_BIOMOD_", Taxon_name, ".csv"))
 
-## Prepare species list
-species <- tibble(SpeciesID = speciesSub)
-species #23; N: 44
+write_csv(records_species, file=paste0("_results/Species_list_", Taxon_name, ".csv"))
+records_species <- read_csv(file=paste0("_results/Species_list_", Taxon_name, ".csv"))
 
-write_csv(species[species$SpeciesID %in% (records_species[records_species$occ>=100,] %>% pull(SpeciesID)),], 
-          paste0("_intermediates/SDM_", Taxon_name, ".csv")) 
+# save species IDs for species with >100 BIOMOD presences
+write_csv(records_species %>% filter(occ>=100) %>% 
+            dplyr::select(SpeciesID) %>% rename(species = SpeciesID) %>% unique(),
+          file=paste0("_intermediates/SDM_", Taxon_name, ".csv"))
 
-write_csv(species[species$SpeciesID %in% (records_species[records_species$occ<100,] %>% pull(SpeciesID)),], 
-          paste0("_intermediates/ESM_", Taxon_name, ".csv"))
+# save IDS for species with >10 and <100 presences
+write_csv(records_species %>% filter(occ>=10 & 
+                                       occ<100) %>% 
+            dplyr::select(SpeciesID) %>% rename(species = SpeciesID) %>% unique(),
+          file=paste0("_intermediates/ESM_", Taxon_name, ".csv"))
+
