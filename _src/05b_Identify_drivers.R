@@ -31,11 +31,17 @@ library(rJava)
 # change temporary directory for files
 #raster::rasterOptions(tmpdir = "D:/00_datasets/Trash")
 
-Taxon_name <- "nematodes"
+Taxon_name <- "Fungi"
 
 # load number of occurrences per species and focal species names
 speciesSub <- read.csv(file=paste0("_intermediates/SDM_", Taxon_name, ".csv"))
-speciesSub <- speciesSub %>% pull(SpeciesID)
+if(nrow(speciesSub) != 0){
+	speciesSub <- speciesSub %>% 
+		full_join(read.csv(file=paste0("_intermediates/ESM_", Taxon_name, ".csv"))) %>%
+		pull(species)
+}else{
+	speciesSub <- read.csv(file=paste0("_intermediates/ESM_", Taxon_name, ".csv")) %>% pull(species)
+}
 speciesSub
 
 #- - - - - - - - - - - - - - - - - - - - -
@@ -44,7 +50,7 @@ speciesSub
 # load environmental variables (for projections)
 Env_clip <- terra::rast("_intermediates/EnvPredictor_1km_POR.tif")
 
-# remove correlated variables
+# remove correlated variables -> already done before PCA
 env_vif <- read_csv(file="_results/VIF_predictors_1km_POR.csv")
 env_vif
 
@@ -67,19 +73,47 @@ if(!dir.exists(paste0("_results/_TopPredictor/", Taxon_name))){
 
 #- - - - - - - - - - - - - - - - - - - - -
 ## Prepare model input ####
-
 mySpeciesOcc <- read_csv(file=paste0("_intermediates/Occurrence_rasterized_1km_", Taxon_name, ".csv"))
 
-for(spID in speciesSub) { try({
+for(spID in speciesSub){
+          try({
+          
+          # in case some spID run into memory allocation error, do only missing 
+          # ones with 1 instead of 3 cores running in parallel
+          #if(file.exists(paste0(data_wd, "/_intermediates/BIOMOD_data/", Taxon_name, "/BiomodData_", Taxon_name,"_", spID, ".RData"))==FALSE){
+          
+          myResp <- mySpeciesOcc[!is.na(mySpeciesOcc[,spID]), c("x","y",spID)]
+          
+          if(myResp[myResp[,spID]==0,] %>% nrow() < 
+             myResp[myResp[,spID]==1,] %>% nrow()){
+            myBiomodData <- biomod2::BIOMOD_FormatingData(resp.var = myResp[myResp[,spID]!=0,] %>% pull(spID) %>% as.numeric(),
+                                                          expl.var = Env_clip,
+                                                          resp.xy = myResp[myResp[,spID]!=0,c("x", "y")],
+                                                          resp.name = spID,
+                                                          PA.nb.rep = 1,
+                                                          PA.nb.absences = 1000, # not needed because true absence data available
+                                                          PA.strategy = "random"
+            )
+          }else{
+            
+            myBiomodData <- biomod2::BIOMOD_FormatingData(resp.var = myResp %>% pull(spID) %>% as.numeric(),
+                                                          expl.var = Env_clip,
+                                                          resp.xy = myResp[,c("x", "y")],
+                                                          resp.name = spID,
+                                                          PA.nb.rep = 0,
+                                                          #PA.nb.absences = 10000, # not needed because true absence data available
+                                                          #PA.strategy = "random"
+                                                          )
+          }
+ 
+  myData <- cbind(myBiomodData@data.species, myBiomodData@coord, myBiomodData@data.env.var)
+  myData$SpeciesID <- spID
+  myData <- myData %>% rename("occ" = "myBiomodData@data.species")
+  myData[is.na(myData$occ),"occ"] <- 0 #replace pseudo (NA) by 0
 
-  myData <- mySpeciesOcc[!is.na(mySpeciesOcc[,spID]), c("x","y",spID)]
-  myData_env <- terra::extract(x = Env_clip, y = myData[,c("x", "y")])
-  
-  myData <- myData %>% cbind(myData_env[,-1])
-  
   save(myData, file=paste0("_results/_TopPredictor/", Taxon_name, "/MaxentData_noValid_", Taxon_name,"_", spID, ".RData"))
 
-  rm(myData_env, myData)
+  rm(myBiomodData, myResp, myData)
 
 })}
 
@@ -87,10 +121,6 @@ for(spID in speciesSub) { try({
 #- - - - - - - - - - - - - - - - - - - - -
 ## Modeling (no validation data) ####
 # NOTE: This part might only work in R but not in RStudio.
-
-# "We used five different regularization multipliers (0.5, 1, 2, 3 and 4)
-# in combination with different features (L, LQ, H, LQH, LQHP) to find the 
-# best parameters that maximizes the average AUC-ROC in CV."
 
 modelName <- "MaxentData_noValid"
 
@@ -104,30 +134,26 @@ for(spID in speciesSub){ try({
    
   ## fit a maxent model with the tuned parameters
   maxent <- dismo::maxent(x = myData[, covarsNames],
-                          p = myData[, spID],
+                          p = myData[, "occ"],
                           removeDuplicates = FALSE, #remove occurrences that fall into same grid cell (not necessary)
                           path = paste0("_results/_TopPredictor/maxent_files/", spID), #wanna save files?
-                          #args = c("responsecurves")
+                          args = c("responsecurves")
                           )
   
   temp_model_time <- proc.time()[3] - tmp
   
   
   tmp <- proc.time()[3]
-  # create raster layer of predictions for whole environmental space
-  #temp_prediction <- raster::predict(Env_clip, maxent)
-  #temp_prediction <- data.frame(raster::rasterToPoints(temp_prediction))
+
   gc()
-  #temp_prediction <- dismo::predict(maxent, Env_clip_df %>% dplyr::select(-x, -y)) # Java out of memory
-  temp_prediction <- dismo::predict(maxent, Env_clip_df[,colnames(Env_clip_df) %in% covarsNames], type = c("cloglog"))
-  temp_prediction <- as.numeric(temp_prediction)
+  temp_prediction <- dismo::predict(maxent, Env_clip_df %>% dplyr::select(-x, -y)) # Java out of memory
+  #temp_prediction <- dismo::predict(maxent, Env_clip_df[,colnames(Env_clip_df) %in% covarsNames], type = c("cloglog"))
+  #temp_prediction <- as.numeric(temp_prediction)
   names(temp_prediction) <- rownames(Env_clip_df[complete.cases(Env_clip_df[,colnames(Env_clip_df) %in% covarsNames]),]) #add site names
   temp_prediction <- as.data.frame(temp_prediction)
   temp_prediction$x <- Env_clip_df[complete.cases(Env_clip_df[,colnames(Env_clip_df) %in% covarsNames]),]$x
   temp_prediction$y <- Env_clip_df[complete.cases(Env_clip_df[,colnames(Env_clip_df) %in% covarsNames]),]$y
   colnames(temp_prediction)[1] <- "layer"
-  
-  temp_runs <- 1
   
   temp_predict_time <- proc.time()[3] - tmp
   
@@ -141,10 +167,10 @@ for(spID in speciesSub){ try({
   temp_varImp$Predictor <- stringr::str_split_fixed(rownames(temp_varImp), "[.]perm", 2)[,1]
   colnames(temp_varImp) <- c("maxent", "Predictor")  
   
-  maxent_list <- list(bg_data=modelName, time_model=temp_model_time, time_predict=temp_predict_time, runs=temp_runs, prediction=temp_prediction, varImp=temp_varImp)
+  maxent_list <- list(bg_data=modelName, time_model=temp_model_time, time_predict=temp_predict_time, prediction=temp_prediction, varImp=temp_varImp)
   save(maxent_list, file=paste0("_results/_TopPredictor/", Taxon_name, "/SDM_maxent_noValid_", spID, ".RData"))
   
-  rm(maxent, maxent_list, param_optim, temp_model_time, temp_predict_time, temp_runs, temp_prediction, temp_varImp)
+  rm(maxent, maxent_list, param_optim, temp_model_time, temp_predict_time, temp_prediction, temp_varImp)
   gc()
   
   rm(myData)
