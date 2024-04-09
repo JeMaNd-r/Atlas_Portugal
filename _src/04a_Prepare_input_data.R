@@ -17,7 +17,7 @@ library(doParallel)
 Env_clip <- terra::rast("_intermediates/EnvPredictor_PCA_1km_POR.tif")
 Env_clip <- terra::subset(Env_clip, 1:11) #11 = >80%
 
-Taxon_name <- "Nematodes"
+Taxon_name <- "Eukaryotes"
 
 #- - - - - - - - - - - - - - - - - - - - -
 ## Prepare data ####
@@ -75,36 +75,50 @@ for(spID in speciesSub){
 
 #- - - - - - - - - - - - - - - - - - - - -
 ## Calculate number of records per species ####
-records <- data.frame("x"=12, "y"=12,"occ"=1, "SpeciesID"="species")[0,]
-
-for(spID in speciesSub){ try({
+records <- lapply(as.list(speciesSub), function(x){
+  spID <- x
+  myBiomodData <- get(load(file=paste0("_intermediates/BIOMOD_data/", Taxon_name, "/BiomodData_", Taxon_name,"_", x, ".RData")))
   
-  print(paste0(spID, " will be added."))
-  
-  # load biomod data
-  load(file=paste0("_intermediates/BIOMOD_data/", Taxon_name, "/BiomodData_", Taxon_name,"_", spID, ".RData")) #myBiomodData
-
   # extract occurrences & pseudo-absences
   myData <- cbind(myBiomodData@data.species, myBiomodData@coord, myBiomodData@data.env.var)
   myData$SpeciesID <- spID
   myData <- myData %>% rename("occ" = "myBiomodData@data.species")
   myData[is.na(myData$occ),"occ"] <- 0 #replace pseudo (NA) by 0
   
-  records <- rbind(records, myData[,c("x", "y","occ", "SpeciesID")])
+  myData
 })
-}
 
+records <- do.call(rbind, records)
 head(records)
-nrow(records) # Crassiclitellata: 2,093, nematoda: 17,211
-nrow(records %>% filter(occ==1)) # 171; N: 5630
-nrow(records %>% filter(occ==0)) # 1,922; N: 11,581
+
+## same but in for loop... takes >1 day for Bacteria
+# for(spID in speciesSub){ try({
+#   
+#   print(paste0(spID, " will be added."))
+#   
+#   # load biomod data
+#   load(file=paste0("_intermediates/BIOMOD_data/", Taxon_name, "/BiomodData_", Taxon_name,"_", spID, ".RData")) #myBiomodData
+# 
+#   # extract occurrences & pseudo-absences
+#   myData <- cbind(myBiomodData@data.species, myBiomodData@coord, myBiomodData@data.env.var)
+#   myData$SpeciesID <- spID
+#   myData <- myData %>% rename("occ" = "myBiomodData@data.species")
+#   myData[is.na(myData$occ),"occ"] <- 0 #replace pseudo (NA) by 0
+#   
+#   records <- rbind(records, myData[,c("x", "y","occ", "SpeciesID")])
+# })
+# }
+
+nrow(records) # Crassiclitellata: 1887 (species 2,093), nematoda f: 23625; fungi: ; bacteria: 16,641,669
+nrow(records %>% filter(occ==1)) # 159 (species 171); Nf: 5218; F: ; B: 2,383,587
+nrow(records %>% filter(occ==0)) # 1728 (species 1,922); Nf: 18417; F: ; B: 14,258,082
 
 records_species <- records %>% group_by(SpeciesID) %>% summarize(across("occ", sum)) %>%
   full_join(records %>% filter(occ==0) %>% group_by(SpeciesID) %>% count(name="Absences")) 
 records_species
 
-records_species %>% filter(occ>=10) %>% count() # C: 5 species, N: 36
-records_species %>% filter(occ>=100) %>% count() # C: 0 species (max. occ=92), N: 21 
+records_species %>% filter(occ>=10) %>% count() # C: 5 species/ 3 genera, N: 29f / 17g, F: , B: 25653
+records_species %>% filter(occ>=100) %>% count() # C: 0 species (max. occ=92) / 0 genera, N: 22f / 8g, F: , B: 7997
 
 write_csv(records, file=paste0("_results/Occurrence_rasterized_1km_BIOMOD_", Taxon_name, ".csv"))
 records <- read_csv(file=paste0("_results/Occurrence_rasterized_1km_BIOMOD_", Taxon_name, ".csv"))
