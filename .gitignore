@@ -69,3 +69,11 @@ _results/Occurrence_rasterized_1km_BIOMOD_nematodes.csv
 *.evaluation
 *.prediction
 _intermediates
+/_results/Bacteria/SDMs
+_data/SoilReCon_Data_4_23_Locations.csv
+/_data
+/_results/Bacteria
+_intermediates/Occurrence_raw_nematodes.csv
+_intermediates/Occurrences_clean_nematodes.csv
+/_intermediates
+/_results
