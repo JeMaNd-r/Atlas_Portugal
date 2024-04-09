@@ -5,23 +5,27 @@
 #                                           #
 #- - - - - - - - - - - - - - - - - - - - - -#
 
-
-#setwd("D:/_students/Romy/SoilBiodiversity")
-
 gc()
 library(tidyverse)
 library(here)
 
 library(raster)
 
-#write("TMPDIR = 'D:/00_datasets/Trash'", file=file.path(Sys.getenv('R_USER'), '.Renviron'))
-
-# change temporary directory for files
-#raster::rasterOptions(tmpdir = "D:/00_datasets/Trash")
+Taxon_name <- "Nematodes"
 
 # load number of occurrences per species and focal species names
-speciesSub <- read.csv(file=paste0("_intermediates/SDM_", Taxon_name, ".csv")) %>% pull(SpeciesID)
+speciesSub <- read.csv(file=paste0("_intermediates/SDM_", Taxon_name, ".csv"))
+if(nrow(speciesSub) != 0){
+  speciesSub <- speciesSub %>% 
+    full_join(read.csv(file=paste0("_intermediates/ESM_", Taxon_name, ".csv"))) %>%
+    pull(species)
+}else{
+  speciesSub <- read.csv(file=paste0("_intermediates/ESM_", Taxon_name, ".csv")) %>% pull(species)
+}
 speciesSub
+
+species10 <- read_csv(file=paste0("_intermediates/ESM_", Taxon_name, ".csv"))$species
+species100 <- read_csv(file=paste0("_intermediates/SDM_", Taxon_name, ".csv"))$species
 
 covarsNames <- paste0("PC", 1:11)
 
@@ -32,58 +36,35 @@ Env_clip <- terra::subset(Env_clip, 1:11) #11 = >80%
 
 #Env_clip_df <- terra::as.data.frame(Env_clip, xy=TRUE)
 
-#uncertain_df <- Env_clip_df %>% dplyr::select(x, y)
-uncertain_tif <- terra::rast(terra::ext(Env_clip), resolution=res(Env_clip)) 
-crs(uncertain_tif) <- crs(Env_clip)
-uncertain_tif
-
-for(spID in speciesSub){try({
+#- - - - - - - - - - - - - - - - - - - - - -
+## Create maps and calculate richness ####
+#- - - - - - - - - - - - - - - - - - - - - -
+for(i in c(10, 100)){
+  print(i)
   
-  print(paste0("Species: ", spID))
-
-  # list files in species-specific BIOMOD folder
-  temp_files <- list.files(paste0("_results/",Taxon_name, "/", stringr::str_replace(spID, "_", "."), "/proj_modeling"), full.names = TRUE)
-          
-  #setwd(paste0(data_wd, "/results/", Taxon_name))
-
-  myBiomodEnProj <- get(load(temp_files[stringr::str_detect(temp_files,"ensemble.RData")]))
-       
-  # save predictions as raster file
-  temp_prediction <- myBiomodEnProj[,"pred"] #column with CoV
-  temp_prediction <- as.numeric(temp_prediction)
-  # add names of grid cell (only for those that have no NA in any layer)
-  names(temp_prediction) <- rownames(Env_clip_df)
-  temp_prediction <- as.data.frame(temp_prediction)
-  temp_prediction$x <- Env_clip_df$x
-  temp_prediction$y <- Env_clip_df$y
-  temp_prediction <- temp_prediction %>% full_join(Env_clip_df %>% dplyr::select(x,y)) %>%
-     rename("layer" = temp_prediction)
-  temp_prediction$layer <- temp_prediction$layer / 1000
-  temp_prediction[,spID] <- temp_prediction$layer
-          
-  temp_prediction <- terra::rast(temp_prediction[,c("x", "y", spID)])
+  # list all projections
+  uncertain_rast <- paste0("_results/Nematodes/Uncertainty/CV_", get(paste0("species", i)),".tif")
   
-  # add layer to stack
-  uncertain_tif <- c(uncertain_tif, temp_prediction)
- 
-})}
-
-uncertain_tif$Mean <- terra::app(uncertain_tif, mean, na.rm=TRUE)
-uncertain_tif$SD <- terra::app(uncertain_tif, sd, na.rm=TRUE)
-
-uncertain_tif
-
-# save species' uncertainty map
-terra::writeRaster(uncertain_tif, file=paste0("_results/", Taxon_name, "/SDM_Uncertainty_", Taxon_name, ".tif"))
-uncertain_tif <- terra::rast(paste0("_results/", Taxon_name, "/SDM_Uncertainty_", Taxon_name, ".tif"))
-
-# extract area with uncertainty lower than threshold
-summary(uncertain_tif$Mean) #3rd Qu. E: 0.3, N: 0.445
-
-uncertain_thresh <- stats::quantile(uncertain_tif$Mean, 0.9, na.rm=TRUE)
-# 0.9-quantile E:0.326, N: 0.472
-
-extent_df <- terra::as.data.frame(uncertain_tif, xy=TRUE) %>% filter(Mean<uncertain_thresh & !is.na(Mean)) %>% dplyr::select(x,y)
-save(extent_df, file=paste0("_results/SDM_Uncertainty_extent_", Taxon_name, ".RData"))
-
+  # load into list
+  uncertain_rast <- terra::rast(uncertain_rast)
+  
+  # calculate mean and SD
+  uncertain_rast$Mean <- terra::app(uncertain_rast, mean, na.rm=TRUE)
+  uncertain_rast$SD <- terra::app(uncertain_rast, sd, na.rm=TRUE)
+  
+  # save species' uncertainty map
+  terra::writeRaster(uncertain_rast, file=paste0("_results/SDM_Uncertainty_", Taxon_name, "_", i, ".tif"), overwrite = TRUE)
+  uncertain_rast <- terra::rast(paste0("_results/SDM_Uncertainty_", Taxon_name, "_", i, ".tif"))
+  
+  # extract area with uncertainty lower than threshold
+  print(summary(uncertain_rast$Mean)) #3rd Qu. E: 421.2, N: 218.8 
+  
+  uncertain_thresh <- stats::quantile(uncertain_rast$Mean, 0.9, na.rm=TRUE)
+  print(uncertain_thresh)
+  # 0.9-quantile E:452.75, N: 10-484.2 100-54.7438
+  
+  extent_df <- terra::as.data.frame(uncertain_rast, xy=TRUE) %>% filter(Mean<uncertain_thresh & !is.na(Mean)) %>% dplyr::select(x,y)
+  save(extent_df, file=paste0("_results/SDM_Uncertainty_extent_", Taxon_name, "_", i, ".RData"))
+  
+}
 

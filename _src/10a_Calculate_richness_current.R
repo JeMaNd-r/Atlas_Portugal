@@ -6,118 +6,122 @@
 #                                           #
 #- - - - - - - - - - - - - - - - - - - - - -#
 
-#setwd("D:/_students/Romy/SoilBiodiversity")
-
 gc()
 library(tidyverse)
-library(here)
-
 library(raster)
 
-#write("TMPDIR = 'D:/00_datasets/Trash'", file=file.path(Sys.getenv('R_USER'), '.Renviron'))
-
-# change temporary directory for files
-#raster::rasterOptions(tmpdir = "D:/00_datasets/Trash")
+Taxon_name <- "Nematodes"
 
 # load number of occurrences per species and focal species names
-speciesSub <- read.csv(file=paste0("_intermediates/SDM_", Taxon_name, ".csv")) %>% pull(SpeciesID)
+speciesSub <- read.csv(file=paste0("_intermediates/SDM_", Taxon_name, ".csv"))
+if(nrow(speciesSub) != 0){
+  speciesSub <- speciesSub %>% 
+    full_join(read.csv(file=paste0("_intermediates/ESM_", Taxon_name, ".csv"))) %>%
+    pull(species)
+}else{
+  speciesSub <- read.csv(file=paste0("_intermediates/ESM_", Taxon_name, ".csv")) %>% pull(species)
+}
 speciesSub
 
-covarsNames <- paste0("PC", 1:11)
-
+# load environmental variables
 Env_clip <- terra::rast("_intermediates/EnvPredictor_PCA_1km_POR.tif")
 Env_clip <- terra::subset(Env_clip, 1:11) #11 = >80%
 
-Env_clip_df <- terra::as.data.frame(Env_clip, xy=TRUE)
-
+# create directory to save species richness stacks
+if(!dir.exists(paste0("_results/_Maps"))){ 
+  dir.create(paste0("_results/_Maps"))
+}
 
 #- - - - - - - - - - - - - - - - - - - - - -
 ## Create maps and calculate richness ####
 #- - - - - - - - - - - - - - - - - - - - - -
-# create empty data frame
-species_stack <- Env_clip_df %>% dplyr::select(x, y)
+# create empty raster
+species_rast <- terra::rast(extent=(Env_clip))
+rm(Env_clip); gc()
 
-# for loop through all species
+# load model evaluation data (to extract threshold for species)
+data_eval <- read.csv(paste0("_results/Model_evaluation_", Taxon_name, ".csv"))
+
+# list all projections
+species_rast <- list.files(paste0("_results/", Taxon_name, "/Projection"), full.names = TRUE) 
+species_rast
+
+# load into list
+species_rast <- terra::rast(species_rast)
+species_rast
+
+# transform to binary
+mean_thresh <- mean(data_eval$MaxTSS * 1000) # only used when no species-specific threshold available
+
 for(spID in speciesSub){ try({
+  print(spID)
   
-  ## Load probability maps 
-  load(file=paste0("_results/", Taxon_name, "/SDM_biomod_", spID, ".RData")) #biomod_list
-  best_pred <- biomod_list$prediction
+  # Transform to binary
+  temp_thresh <- data_eval[data_eval$Species==spID, "MaxTSS"] * 1000
   
-  print(paste0(spID, " successfully loaded."))
+  if(length(temp_thresh)==0) temp_thresh <- mean_thresh
+  print(temp_thresh)
   
-  ## Transform to binary maps ####
+  temp_rast <- species_rast[[spID]]
   
-  # extract threshold to define presence/absence: TSS [row 2]
-  temp_thresh <- biomod_list$validation[2,"cutoff"]/1000
-  if(is.na(temp_thresh)) temp_tresh <- 0.9
+  # ### ESM: Binary Projection based on max TSS of calibrated ESMs into new space                                                
+  # my.ESM_EFproj_current_binary <- (my.ESM_EFproj_current > (my.ESM_thresholds$TSS.th*1000))*1
   
-  # change to binary
-  best_pred[best_pred$layer>=temp_thresh & !is.na(best_pred$layer), "layer"] <- 1
-  best_pred[best_pred$layer<temp_thresh & !is.na(best_pred$layer), "layer"] <- 0
+  ## from-to-becomes
+  # classify the values into three groups 
+  # all values >= temp_thresh become 1
+  m <- c(0, temp_thresh, 0,
+         temp_thresh, 1001, 1)
+  rclmat <- matrix(m, ncol=3, byrow=TRUE)
+  temp_rast <- terra::classify(temp_rast, rclmat, include.lowest=TRUE)
   
-  best_pred[,spID] <- best_pred$layer
-  best_pred <- best_pred[,c("x","y",spID)]
+  species_rast[[spID]] <- temp_rast
   
-  # save binary
-  save(best_pred, file=paste0("_results/", Taxon_name, "/SDM_bestPrediction_binary_", Taxon_name, "_", spID, ".RData"))
+  print("Binary transformation successful.")
   
-  print(paste0("Saved binary prediction of ", spID))
-  
-  #- - - - - - - - - - - - - - - - - - - - - -
-  ## Stack species binary maps ####
-  
-  # add species dataframe to stacked dataframe
-  species_stack <- species_stack %>% full_join(best_pred, by=c("x","y"))
-  
-  print(paste0("Added binary prediction of ", spID, " to the species stack"))
-  
-  rm(temp_thresh, best_pred)
-}, silent=T)}  
-
-head(species_stack)
-
+  gc()
+}, silent=TRUE)}
+species_rast
 
 #- - - - - - - - - - - - - - - - - - - - - -
 ## Calculate richness ####
-species_stack$Richness <- rowSums(species_stack %>% dplyr::select(-x, -y), na.rm=F)
-
+species_rast$Richness <- terra::app(species_rast, sum, na.rm=TRUE)
 
 #- - - - - - - - - - - - - - - - - - - - - -
 ## Save species stack ####
-save(species_stack, file=paste0("_results/", Taxon_name, "/SDM_stack_bestPrediction_binary_", Taxon_name, ".RData"))
+terra::writeRaster(species_rast, file=paste0("_results/_Maps/SDM_stack_binary_", Taxon_name, ".tif"))
 
-#load(file=paste0(data_wd, "/_results/_Maps/SDM_stack_bestPrediction_binary_", Taxon_name, ".RData")) #species_stack
-# 
-# #- - - - - - - - - - - - - - - - - - - - - -
-# ## Beta diversity ####
-# # vegan::vegdist() cannot handle such big vectors
-# # alternatively, we calculate clusters
-# temp_matrix <- species_stack[species_stack$Richness>0 & !is.na(species_stack$Richness),colnames(species_stack)[stringr::str_detect("_current", string = colnames(species_stack))]]
-# temp_matrix <- temp_matrix[complete.cases(temp_matrix),]
-# 
-# temp_clust <- kmeans(temp_matrix, 10) 
-# temp_clust <- cbind(species_stack[species_stack$Richness>0 & !is.na(species_stack$Richness),],
-#                     "Cluster"=temp_clust$cluster)
-# 
-# species_stack <- species_stack %>% full_join(temp_clust)
-# 
-# 
-# ## View clusters
-# world.inp <- map_data("world")
-# 
-# png(file=paste0(data_wd, "/_figures/Clusters_K10_", Taxon_name, ".png"), width=1000, height=1000)
-# ggplot()+
-#   geom_map(data = world.inp, map = world.inp, aes(map_id = region), fill = "grey80") +
-#   xlim(-23, 60) +
-#   ylim(31, 75) +
+#load(file=paste0(data_wd, "/_results/_Maps/SDM_stack_binary_", Taxon_name, ".RData")) #species_stack
+
+
+# ## OLD - - - - - - - - - - - - - - - - - - - - - -
+# # for loop through all species
+# for(spID in speciesSub){ try({
 #   
-#   geom_tile(data=species_stack %>% filter(Richness>0), aes(x=x, y=y, fill=as.factor(Cluster)))+
-#   ggtitle("Clusters (k=10)")+
-#   scale_fill_viridis_d()+
-#   theme_bw()+
-#   theme(axis.title = element_blank(), legend.title = element_blank(),
-#         legend.position = c(0.1,0.4))
-# dev.off()
-
-
+#   # list files in species-specific BIOMOD folder
+#   temp_files <- list.files(paste0(data_wd, "/_results/", Taxon_name, "/", stringr::str_replace(spID, "_", "."), "/proj_modeling"), full.names = TRUE)
+#   
+#   #setwd(paste0(data_wd, "/results/", Taxon_name))
+#   
+#   myBiomodEnProj <- terra::rast(temp_files[stringr::str_detect(temp_files,"ensemble.tif")])
+#   
+#   print(paste0(spID, " successfully loaded."))
+#   
+#   # extract prediction
+#   temp_prediction <- myBiomodEnProj[[2]] #column with weighted mean
+#   names(temp_prediction) <- spID
+#   
+#   #print(paste0("Saved binary prediction of ", spID))
+#   
+#   # add layer to stack
+#   species_rast <- c(species_rast, temp_prediction)
+#   
+#   print(paste0("Added binary prediction of ", spID, " to the species stack"))
+#   
+#   rm(temp_thresh, best_pred)
+# }, silent=T)}  
+# 
+# species_rast
+# 
+# #species_rast <- terra::app(species_rast, function(x){x/1000})
+# 
