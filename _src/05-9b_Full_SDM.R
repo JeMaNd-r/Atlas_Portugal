@@ -346,23 +346,4 @@ for(spID in species_table$species){
 # models
 # 
 # write_csv(models, file=paste0(output_dir, "/Models_BIOMOD_", Taxon_name, ".csv"))
-# 
-# 
-# #- - - - - - - - - - - - - - - - - - - - -
-# ## Summarize model output (evaluations into 1 table)
-# list_eval <- list.files(paste0(output_dir, "/", Taxon_name, "/SDMs"), full.names = TRUE)
-# 
-# data_eval <- lapply(list_eval, function(x) append(get(load(x)), 
-#                                                 c("Species" = substr(basename(x), 12, 11+nchar(species_table$species[1]))))) #get species ID
-# data_eval <- lapply(data_eval, function(x){
-#   x2 <- as_tibble(x$validation)
-#   x2$model <- rownames(x$validation)
-#   x2$Species <- x$Species
-#   return(x2)
-#   })
-# data_eval <- do.call(rbind, data_eval)
-# data_eval <- data_eval %>% filter(model == "ensemble")
-# 
-# write_csv(data_eval %>% dplyr::select(-model), paste0(data_wd, "/_results/Model_evaluation_", Taxon_name, ".csv"))
-
 

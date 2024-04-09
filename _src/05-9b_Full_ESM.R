@@ -8,7 +8,7 @@
 # Note: dismo::maxent() might crash in RStudio
 
 setwd("D:/EIE_Macroecology/_students/Romy/Atlas_Portugal")
-Taxon_name <- "Earthworms"
+Taxon_name <- "Nematodes"
 species_csv <- paste0("ESM_", Taxon_name, ".csv") 
 output_dir <- paste0(getwd(), "/_results")
 input_dir <- getwd()
@@ -218,7 +218,7 @@ for(spID in species_table$species){
   #- - - - - - - - - - - - - - - - - - - - -
   ## delete folder & model files
   tryCatch({ 
-    unlink(paste0(data_wd, "/_results/", Taxon_name, "/ESM.BIOMOD.output_", stringr::str_replace(spID, "_", ".")), recursive = TRUE)
+    unlink(paste0(output_dir, "/", Taxon_name, "/ESM.BIOMOD.output_", stringr::str_replace(spID, "_", ".")), recursive = TRUE)
   }, error = function(e) {print(e); print("FAILED: Remove taxa directory")}
   )
   
@@ -227,20 +227,3 @@ for(spID in species_table$species){
   savehistory(file = paste0("./SDMs/.Rhistory_ESM_biomod_", spID))
   
 }
-
-# ## DONE in SDM script
-# #- - - - - - - - - - - - - - - - - - - - -
-# ## Summarize model output (evaluations into 1 table)
-# list_eval <- list.files(paste0(output_dir, "/", Taxon_name, "/SDMs"), full.names = TRUE)
-# 
-# data_eval <- lapply(list_eval, function(x) append(get(load(x)), 
-#                                                   c("Species" = substr(basename(x), 12, 11+nchar(species_table$species[1]))))) #get species ID
-# c <- lapply(data_eval, function(x){
-#   x2 <- as_tibble(x$validation)
-#   x2$model <- rownames(x$validation)
-#   x2$Species <- x$Species
-#   return(x2)
-# })
-# data_eval <- do.call(rbind, data_eval)
-# 
-# write_csv(data_eval, paste0(data_wd, "/_results/Model_evaluation_", Taxon_name, ".csv"))
