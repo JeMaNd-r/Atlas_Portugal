@@ -16,6 +16,7 @@ r <- r[[1]]
 r
 
 Taxon_name <- "Eukaryotes"
+# Note: don't do this for "Earthworms". Because of their low occurrence, we will use point-data instead of the gridded data.
 
 ## Load occurrence data
 occ <- read.csv(paste0("_intermediates/Occurrences_clean_", Taxon_name, ".csv"))

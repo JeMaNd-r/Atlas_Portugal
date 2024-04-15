@@ -189,5 +189,31 @@ terra::writeRaster(Env_tif, "_intermediates/EnvPredictor_PCA_1km_POR.tif") #, ov
 # biplot(loadings, scores, xlim = c(-max(sdev), max(sdev)), ylim = c(-max(sdev), max(sdev)), main = "Biplot")
 
 
+## extract environmental data (PC axis) to get adjacent cells in case 
+Env_tif <- terra::rast("_intermediates/EnvPredictor_PCA_1km_POR.tif") #environmental data
+#data_xy <- read_csv(file="_data/SoilReCon_Data_4_23_Locations.csv") #sampling locations
+data_xy <- read_csv(file="_data/SoilReCon_earthworms_clean.csv") # sampling locations earthworms
 
+# extract data
+data_env <- terra::extract(x = Env_tif, 
+                           y = terra::vect(data_xy, geom = c("POINT_X", "POINT_Y")), 
+                           xy = TRUE,
+                           method = "simple")
+head(data_env)
+
+# extract adjacent data (4 nearest cells)
+data_env_bilinear <- terra::extract(x = Env_tif, 
+                           y = terra::vect(data_xy, geom = c("POINT_X", "POINT_Y")), 
+                           xy = TRUE,
+                           method = "bilinear")
+head(data_env_bilinear)
+
+# fill missing ones
+missing_id <- data_env %>% filter(is.na(PC1)) %>% pull(ID)
+data_env <- data_env %>% filter(!is.na(PC1)) %>%
+  full_join(data_env_bilinear %>% filter(ID %in% missing_id)) %>%
+  arrange(ID)
+head(data_env)
+
+write_csv(data_env, file="_intermediates/SoilReCon_Data_4_23_LocationsEW_PCA.csv")
 

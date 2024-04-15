@@ -46,13 +46,13 @@ recon %>% filter(Abundance!=0) %>% count(Species)
 recon %>% filter(Abundance!=0) %>% count(Genus)
 
 # filter relevant columns
-recon <- recon %>% dplyr::select(Genus, POINT_X, POINT_Y, Abundance) %>%
+recon <- recon %>% dplyr::select(Sample_ID, Genus, POINT_X, POINT_Y, Abundance) %>%
   mutate("SpeciesID" = recon$Genus,
          #"Year" = 2021, "Datasource" = "SoilReCon"
          ) %>%
   rename("x" = POINT_X,
          "y" = POINT_Y) %>%
-  dplyr::select(x, y, SpeciesID, Abundance)%>%
+  #dplyr::select(x, y, SpeciesID, Abundance)%>%
   mutate(Presence = ifelse(Abundance>0, 1, 0))
 recon
 
