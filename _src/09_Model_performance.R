@@ -14,7 +14,7 @@ library(here)
 library(raster)
 library(biomod2)
 
-Taxon_name <- "Nematodes"
+Taxon_name <- "EarthGenus"
 
 # load number of occurrences per species and focal species names
 speciesSub <- read.csv(file=paste0("_intermediates/SDM_", Taxon_name, ".csv"))
@@ -31,7 +31,7 @@ speciesSub
 ## Model performance ####
 #- - - - - - - - - - - - - - - - - - - - -
 ## Summarize model output (evaluations into 1 table)
-list_eval <- list.files(paste0(output_dir, "/", Taxon_name, "/SDMs"), full.names = TRUE)
+list_eval <- list.files(paste0("_results/", Taxon_name, "/SDMs"), full.names = TRUE)
 
 data_eval <- lapply(list_eval, function(x) append(get(load(x)),
                                                 c("Species" = substr(basename(x), 12, 11+nchar(speciesSub[2]))))) #get species ID

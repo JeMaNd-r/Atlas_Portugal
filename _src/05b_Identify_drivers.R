@@ -31,7 +31,7 @@ library(rJava)
 # change temporary directory for files
 #raster::rasterOptions(tmpdir = "D:/00_datasets/Trash")
 
-Taxon_name <- "Fungi"
+Taxon_name <- "EarthGenus"
 
 # load number of occurrences per species and focal species names
 speciesSub <- read.csv(file=paste0("_intermediates/SDM_", Taxon_name, ".csv"))
@@ -50,7 +50,7 @@ speciesSub
 # load environmental variables (for projections)
 Env_clip <- terra::rast("_intermediates/EnvPredictor_1km_POR.tif")
 
-# remove correlated variables -> already done before PCA
+# remove correlated variables
 env_vif <- read_csv(file="_results/VIF_predictors_1km_POR.csv")
 env_vif
 

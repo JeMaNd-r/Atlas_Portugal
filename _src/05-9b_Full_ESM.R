@@ -8,7 +8,7 @@
 # Note: dismo::maxent() might crash in RStudio
 
 setwd("D:/EIE_Macroecology/_students/Romy/Atlas_Portugal")
-Taxon_name <- "Nematodes"
+Taxon_name <- "Fungi"
 species_csv <- paste0("ESM_", Taxon_name, ".csv") 
 output_dir <- paste0(getwd(), "/_results")
 input_dir <- getwd()
@@ -94,7 +94,7 @@ Env_clip <- terra::wrap(Env_clip)
 setwd(paste0(input_dir, "/_results/", Taxon_name))
 set.seed(32639)
 
-for(spID in species_table$species){ 
+for(spID in species_table$species[c(86:857)]){
   
   # save history
   #sink(paste0("./SDMs/ESM_biomod_", spID, ".txt"))
@@ -198,13 +198,19 @@ for(spID in species_table$species){
   
   #- - - - - - - - - - - - - - - - - - - - -
   ## get the variable contributions of ESMs
-  my.ESM_varImp <- ecospat.ESM.VarContrib(my.ESM, my.ESM_EF)                                                      
+  tryCatch({
+    my.ESM_varImp <- ecospat.ESM.VarContrib(my.ESM, my.ESM_EF)                                                      
+  }, error = function(e) {print(e); print("FAILED: Variable contribution")}
+  )
   
   ## get the response plots of ESMs
-  my.ESM_responsePlot <- ecospat.ESM.responsePlot(my.ESM_EF,
+  tryCatch({
+    my.ESM_responsePlot <- ecospat.ESM.responsePlot(my.ESM_EF,
                                                   my.ESM,
                                                   fixed.var.metric = 'mean')
-  
+  }, error = function(e) {print(e); print("FAILED: Response plot")}
+  )
+
   #- - - - - - - - - - - - - - - - - - - - -
   ## save model output
   tryCatch({

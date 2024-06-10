@@ -57,11 +57,11 @@ for(i in c(10, 100)){
   uncertain_rast <- terra::rast(paste0("_results/SDM_Uncertainty_", Taxon_name, "_", i, ".tif"))
   
   # extract area with uncertainty lower than threshold
-  print(summary(uncertain_rast$Mean)) #3rd Qu. E: 421.2, N: 218.8 
+  print(summary(uncertain_rast$Mean)) #3rd Qu. E: 421.2, N: 10-449.1 100-52.12 
   
   uncertain_thresh <- stats::quantile(uncertain_rast$Mean, 0.9, na.rm=TRUE)
   print(uncertain_thresh)
-  # 0.9-quantile E:452.75, N: 10-484.2 100-54.7438
+  # 0.9-quantile E:452.75, N: 10-485.5714 100-57.45907
   
   extent_df <- terra::as.data.frame(uncertain_rast, xy=TRUE) %>% filter(Mean<uncertain_thresh & !is.na(Mean)) %>% dplyr::select(x,y)
   save(extent_df, file=paste0("_results/SDM_Uncertainty_extent_", Taxon_name, "_", i, ".RData"))

@@ -30,7 +30,7 @@ if(Taxon_name == "Earthworms" | Taxon_name == "EarthGenus"){
   mySpeciesOcc <- read_csv(file=paste0("_intermediates/Occurrence_rasterized_1km_", Taxon_name, ".csv"))
 }  
 
-speciesSub <- colnames(mySpeciesOcc %>% dplyr::select(-x, -y))
+speciesSub <- colnames(mySpeciesOcc %>% dplyr::select(-Sample_ID, -x, -y))
 speciesSub
 
 # create subfolder if not existing
@@ -129,15 +129,15 @@ head(records)
 # })
 # }
 
-nrow(records) # Crassiclitellata: 1887 (species 3052), nematoda f: 23625; fungi: ; bacteria: 16,641,669
-nrow(records %>% filter(occ==1)) # 159 (species 172); Nf: 5218; F: ; B: 2,383,587
-nrow(records %>% filter(occ==0)) # 1728 (species 2881); Nf: 18417; F: ; B: 14,258,082
+nrow(records) # Crassiclitellata: 930, nematoda f: 23625; fungi: ; bacteria: 16,641,669
+nrow(records %>% filter(occ==1)) # 162; Nf: 5218; F: ; B: 2,383,587
+nrow(records %>% filter(occ==0)) # 768; Nf: 18417; F: ; B: 14,258,082
 
 records_species <- records %>% group_by(SpeciesID) %>% summarize(across("occ", sum)) %>%
   full_join(records %>% filter(occ==0) %>% group_by(SpeciesID) %>% count(name="Absences")) 
 records_species
 
-records_species %>% filter(occ>=10) %>% count() # C: 5 species/ 3 genera, N: 29f / 17g, F: , B: 25653
+records_species %>% filter(occ>=10) %>% count() # C: 5 species/ 4 genera, N: 29f / 17g, F: , B: 25653
 records_species %>% filter(occ>=100) %>% count() # C: 0 species (max. possible occ=92, max. occ=50) / 0 genera, N: 22f / 8g, F: , B: 7997
 
 write_csv(records, file=paste0("_results/Occurrence_rasterized_1km_BIOMOD_", Taxon_name, ".csv"))
@@ -158,7 +158,8 @@ write_csv(records_species %>% filter(occ>=10 &
           file=paste0("_intermediates/ESM_", Taxon_name, ".csv"))
 
 
-# check sampling locations
-terra::plot(Env_clip[[1]])
-terra::plot(terra::vect(myResp, geom = c("x", "y")), add = TRUE, pch = 0)
-terra::plot(terra::vect(myData, geom = c("x", "y")), add = TRUE, pch = 15)
+# # check sampling locations
+# terra::plot(Env_clip[[1]])
+# terra::plot(terra::vect(myResp, geom = c("x", "y")), add = TRUE, pch = 0)
+# terra::plot(terra::vect(myData, geom = c("x", "y")), add = TRUE, pch = 15)
+
