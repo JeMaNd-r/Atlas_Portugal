@@ -60,25 +60,26 @@ df_overview <- data.frame(Taxon = "Taxon",
            No_uncertain_clamp = 1, No_uncertain_cv = 1,
            Plot_occ_clean = TRUE, Plot_occ_grid = TRUE,
            Plot_varImp = TRUE, 
+           Plot_eval = TRUE,
            Plot_uncertain = TRUE,
            Plot_predict = TRUE)[0,]
 
-for(Taxon_name in c("Earthworms", "EarthGenus", "Nematodes", "NemaGenus", "Fungi", "Bacteria", "Eukaryotes", "Protists")){
-  print(Taxon_name)
+for(temp_taxon in c("Earthworms", "EarthGenus", "Nematodes", "NemaGenus", "Fungi", "Bacteria", "Eukaryotes", "Protists")){
+  print(temp_taxon)
   temp_overview <- data.frame(test=1)
   
-  temp_overview[,"Taxon"] <- Taxon_name
+  temp_overview[,"Taxon"] <- temp_taxon
   
   # number of taxa
   try({
-    species100 <- read.csv(file=paste0("_intermediates/SDM_", Taxon_name, ".csv"))
+    species100 <- read.csv(file=paste0("_intermediates/SDM_", temp_taxon, ".csv"))
     if(nrow(species100) != 0){
-      species10 <- read.csv(file=paste0("_intermediates/ESM_", Taxon_name, ".csv"))
+      species10 <- read.csv(file=paste0("_intermediates/ESM_", temp_taxon, ".csv"))
       speciesSub <- species100 %>% 
         pull(species) %>%
         c(species10 %>% pull(species))
     }else{
-      species10 <- read.csv(file=paste0("_intermediates/ESM_", Taxon_name, ".csv"))
+      species10 <- read.csv(file=paste0("_intermediates/ESM_", temp_taxon, ".csv"))
       speciesSub <- species10 %>% pull(species)
     }
     temp_overview[,"No_taxa"] <- length(speciesSub)
@@ -87,38 +88,39 @@ for(Taxon_name in c("Earthworms", "EarthGenus", "Nematodes", "NemaGenus", "Fungi
   })
     
   # data prepared?
-  temp_overview[,"Data_clean"] <- file.exists(paste0("_intermediates/Occurrences_clean_", Taxon_name, ".csv"))
-  temp_overview[,"Data_gridded"] <- file.exists(paste0("_intermediates/Occurrence_rasterized_1km_", Taxon_name, ".csv"))
-  temp_overview[,"Data_biomod"] <- length(list.files(paste0("_intermediates/BIOMOD_data/", Taxon_name)))
+  temp_overview[,"Data_clean"] <- file.exists(paste0("_intermediates/Occurrences_clean_", temp_taxon, ".csv"))
+  temp_overview[,"Data_gridded"] <- file.exists(paste0("_intermediates/Occurrence_rasterized_1km_", temp_taxon, ".csv"))
+  temp_overview[,"Data_biomod"] <- length(list.files(paste0("_intermediates/BIOMOD_data/", temp_taxon)))
   
   # how many varImp ready?
-  temp_overview[,"No_varImp"] <- length(list.files(paste0("_results/_TopPredictor/", Taxon_name), 
+  temp_overview[,"No_varImp"] <- length(list.files(paste0("_results/_TopPredictor/", temp_taxon), 
                                                   pattern = "SDM_"))
   
   # how many SDMs and ESMs ready?
-  temp_overview[,"No_SDMs"] <- length(list.files(paste0("_results/", Taxon_name, "/SDMs"), 
+  temp_overview[,"No_SDMs"] <- length(list.files(paste0("_results/", temp_taxon, "/SDMs"), 
                                                   pattern = "SDM_"))
-  temp_overview[,"No_ESMs"] <- length(list.files(paste0("_results/", Taxon_name, "/SDMs"), 
+  temp_overview[,"No_ESMs"] <- length(list.files(paste0("_results/", temp_taxon, "/SDMs"), 
                                                 pattern = "ESM_"))
   
   # how many predictions & uncertainty ready?
-  temp_overview[,"No_predict"] <- length(list.files(paste0("_results/", Taxon_name, "/Projection")))
-  temp_overview[,"No_uncertain_clamp"] <- length(list.files(paste0("_results/", Taxon_name, "/Uncertainty"),
+  temp_overview[,"No_predict"] <- length(list.files(paste0("_results/", temp_taxon, "/Projection")))
+  temp_overview[,"No_uncertain_clamp"] <- length(list.files(paste0("_results/", temp_taxon, "/Uncertainty"),
                                                            pattern = "ClampingMask_"))
-  temp_overview[,"No_uncertain_cv"] <- length(list.files(paste0("_results/", Taxon_name, "/Uncertainty"),
+  temp_overview[,"No_uncertain_cv"] <- length(list.files(paste0("_results/", temp_taxon, "/Uncertainty"),
                                                         pattern = "CV_"))
   temp_overview[,"No_uncertain"] <- as.numeric(temp_overview["No_uncertain_clamp"]) + as.numeric(temp_overview["No_uncertain_cv"])
 
   # visualization ready?
-  temp_overview[,"Plot_occ_clean"] <- file.exists(paste0("_figures/OccurrencesCleaned_", Taxon_name, ".pdf"))
-  temp_overview[,"Plot_occ_grid"] <- file.exists(paste0("_figures/OccurrencesGridded_", Taxon_name, ".pdf"))
-  temp_overview[,"Plot_varImp"] <- file.exists(paste0("_figures/VariableImportance_MaxEnt_", Taxon_name, ".pdf"))
-  temp_overview[,"Plot_uncertain"] <- file.exists(paste0("_figures/Uncertainty_", Taxon_name, ".pdf"))
-  temp_overview[,"Plot_predict"] <- file.exists(paste0("_figures/DistributionMap_bestBinary_", Taxon_name, ".pdf"))
+  temp_overview[,"Plot_occ_clean"] <- file.exists(paste0("_figures/OccurrencesCleaned_", temp_taxon, ".pdf"))
+  temp_overview[,"Plot_occ_grid"] <- file.exists(paste0("_figures/OccurrencesGridded_", temp_taxon, ".pdf"))
+  temp_overview[,"Plot_varImp"] <- file.exists(paste0("_figures/VariableImportance_MaxEnt_", temp_taxon, ".pdf"))
+  temp_overview[,"Plot_eval"] <- file.exists(paste0("_figures/Model_performance_", temp_taxon, ".pdf"))
+  temp_overview[,"Plot_uncertain"] <- file.exists(paste0("_figures/Uncertainty_", temp_taxon, ".pdf"))
+  temp_overview[,"Plot_predict"] <- file.exists(paste0("_figures/DistributionMap_bestBinary_", temp_taxon, ".pdf"))
   
   # add to summary df
   df_overview <- full_join(df_overview, temp_overview %>% dplyr::select(-test))
-  
+
 }
 
 df_overview
@@ -435,18 +437,25 @@ ggsave(paste0("_figures/VariableImportance_MaxEnt_species_", Taxon_name, ".pdf")
 #- - - - - - - - - - - - - - - - - - - - - -
 
 # load uncertainty extent for all maps
-load(file=paste0("_results/SDM_Uncertainty_extent_", Taxon_name, ".RData")) #extent_df
+extent_10 <- get(load(file=paste0("_results/SDM_Uncertainty_extent_", Taxon_name, "_10.RData"))) #extent_df
+extent_100 <- get(load(file=paste0("_results/SDM_Uncertainty_extent_", Taxon_name, "_100.RData"))) #extent_df
 
 # load uncertainty
-uncertain_tif <- terra::rast(paste0("_results/SDM_Uncertainty_", Taxon_name, ".tif")) 
-uncertain_df <- terra::as.data.frame(uncertain_tif, xy=TRUE)
+uncertain_tif <- terra::rast(paste0("_results/SDM_Uncertainty_", Taxon_name, "_10.tif")) 
+uncertain_10 <- terra::as.data.frame(uncertain_tif, xy=TRUE)
+
+uncertain_tif <- terra::rast(paste0("_results/SDM_Uncertainty_", Taxon_name, "_100.tif")) 
+uncertain_100 <- terra::as.data.frame(uncertain_tif, xy=TRUE)
+
+rm(uncertain_tif)
 
 #- - - - - - - - - - - - - - - - - - - - - -
 ## Uncertainty ####
 #- - - - - - - - - - - - - - - - - - - - - -
+# ESMs
 ggplot()+
   geom_map(data = world.inp, map = world.inp, aes(map_id = region), fill = "grey80") +
-  geom_tile(data=uncertain_df %>% filter(Mean!=0), aes(x=x, y=y, fill=Mean))+
+  geom_tile(data=uncertain_10 %>% filter(Mean!=0), aes(x=x, y=y, fill=Mean))+
   ggtitle("Coefficient of variation averaged across SDMs")+
   coord_cartesian(xlim = c(extent_portugal[1], extent_portugal[2]),
                   ylim = c(extent_portugal[3], extent_portugal[4]))+
@@ -462,20 +471,43 @@ ggplot()+
         panel.grid.minor = element_blank(),
         panel.border = element_blank(),
         panel.background = element_blank())
-ggsave(file=paste0("_figures/Uncertainty_", Taxon_name, ".pdf"), height = 5, width = 8)
+ggsave(file=paste0("_figures/Uncertainty_ESM_", Taxon_name, ".pdf"), height = 5, width = 8)
+
+# SDMs
+ggplot()+
+  geom_map(data = world.inp, map = world.inp, aes(map_id = region), fill = "grey80") +
+  geom_tile(data=uncertain_100 %>% filter(Mean!=0), aes(x=x, y=y, fill=Mean))+
+  ggtitle("Coefficient of variation averaged across SDMs")+
+  coord_cartesian(xlim = c(extent_portugal[1], extent_portugal[2]),
+                  ylim = c(extent_portugal[3], extent_portugal[4]))+
+  
+  scale_fill_viridis_c(option="E")+
+  theme_bw()+  
+  
+  theme(axis.title = element_blank(), legend.title = element_blank(),
+        legend.position ="right",legend.direction = "vertical",
+        axis.line = element_blank(), axis.text = element_blank(), axis.ticks = element_blank(),
+        legend.text = element_text(size=20), legend.key.size = unit(1, 'cm'),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank())
+ggsave(file=paste0("_figures/Uncertainty_SDM_", Taxon_name, ".pdf"), height = 5, width = 8)
 
 # uncertainty threshold
 if(Taxon_name == "Earthworms") temp_thresh <- 452.75
-if(Taxon_name == "Nematodes") temp_thresh <- 227.9611
+if(Taxon_name == "Nematodes") temp_thresh10 <- 485.5714; temp_thresh100 <- 57.45907
+
+# ESMs
 ggplot()+
   geom_map(data = world.inp, map = world.inp, aes(map_id = region), fill = "grey80") +
   coord_cartesian(xlim = c(extent_portugal[1], extent_portugal[2]),
                   ylim = c(extent_portugal[3], extent_portugal[4]))+
   
-  geom_tile(data=uncertain_df %>% filter(Mean<temp_thresh), aes(x=x, y=y, fill=Mean))+
+  geom_tile(data=uncertain_10 %>% filter(Mean<temp_thresh10), aes(x=x, y=y, fill=Mean))+
   ggtitle("Coefficient of variation averaged across SDMs")+
   scale_fill_viridis_c(option="E")+
-  geom_tile(data=uncertain_df %>% filter(Mean>=temp_thresh), aes(x=x, y=y), fill="linen")+
+  geom_tile(data=uncertain_10 %>% filter(Mean>=temp_thresh10), aes(x=x, y=y), fill="linen")+
   theme_bw()+
   theme(axis.title = element_blank(), legend.title = element_blank(),
         legend.position = "right",legend.direction = "vertical",
@@ -485,12 +517,35 @@ ggplot()+
         panel.grid.minor = element_blank(),
         panel.border = element_blank(),
         panel.background = element_blank())
-ggsave(file=paste0("_figures/Uncertainty_", Taxon_name, "_", temp_thresh, ".pdf"), height = 5, width = 8)
+ggsave(file=paste0("_figures/Uncertainty_ESM_", Taxon_name, "_", temp_thresh10, ".pdf"), height = 5, width = 8)
+
+# SDMs
+ggplot()+
+  geom_map(data = world.inp, map = world.inp, aes(map_id = region), fill = "grey80") +
+  coord_cartesian(xlim = c(extent_portugal[1], extent_portugal[2]),
+                  ylim = c(extent_portugal[3], extent_portugal[4]))+
+  
+  geom_tile(data=uncertain_100 %>% filter(Mean<temp_thresh100), aes(x=x, y=y, fill=Mean))+
+  ggtitle("Coefficient of variation averaged across SDMs")+
+  scale_fill_viridis_c(option="E")+
+  geom_tile(data=uncertain_100 %>% filter(Mean>=temp_thresh100), aes(x=x, y=y), fill="linen")+
+  theme_bw()+
+  theme(axis.title = element_blank(), legend.title = element_blank(),
+        legend.position = "right",legend.direction = "vertical",
+        axis.line = element_blank(), axis.text = element_blank(), axis.ticks = element_blank(),
+        legend.text = element_text(size=20), legend.key.size = unit(1, 'cm'),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank())
+ggsave(file=paste0("_figures/Uncertainty_SDM_", Taxon_name, "_", temp_thresh100, ".pdf"), height = 5, width = 8)
 
 #- - - - - - - - - - - - - - - - - - - - - -
 ## Map species uncertainty maps ####
 # to plot uncertainty of species with temp_thresh, add commented text and
 # change limits of scale_fill to c(0, temp_thresh) in both plots and legend
+uncertain_df <- uncertain_10; temp_thresh <- temp_thresh10
+#uncertain_df <- uncertain_100; temp_thresh <- temp_thresh100
 
 plots <- lapply(3:(ncol(uncertain_df)-2), function(s) {try({
   print(s-2)
@@ -537,48 +592,52 @@ legend <- g_legend(ggplot(data=uncertain_df[!is.na(uncertain_df[,3]) & uncertain
 
 plots2 <- c(plots, list(legend))
 
-pdf(file=paste0("_figures/Uncertainty_allSpecies_", Taxon_name, ".pdf"), height = 10, width = 10)
+pdf(file=paste0("_figures/Uncertainty_ESM_allSpecies_", Taxon_name, ".pdf"), height = 10, width = 10)
+#pdf(file=paste0("_figures/Uncertainty_SDM_allSpecies_", Taxon_name, ".pdf"), height = 10, width = 10)
 #png(file=paste0("_figures/Uncertainty_allSpecies_", Taxon_name, ".png"),width=3000, height=3000)
 do.call(grid.arrange, plots2)
 dev.off()
 
-#- - - - - - - - - - - - - - - - - - - - - -
-## Species richness (current) ####
-#- - - - - - - - - - - - - - - - - - - - - -
-
-species_stack <- terra::rast(paste0("_results/_Maps/SDM_stack_binary_", Taxon_name, ".tif")) 
-species_stack <- terra::as.data.frame(species_stack, xy = TRUE)
-
-summary(species_stack$Richness)
-sd(species_stack$Richness)
-
-# species richness
-ggplot()+
-  geom_map(data = world.inp, map = world.inp, aes(map_id = region), fill = "grey80") +
-  coord_cartesian(xlim = c(extent_portugal[1], extent_portugal[2]),
-                  ylim = c(extent_portugal[3], extent_portugal[4]))+
-  
-  geom_tile(data=extent_df %>% inner_join(species_stack %>% filter(Richness>0), by=c("x","y")), 
-            aes(x=x, y=y, fill=Richness))+
-  ggtitle("Species richness (number of species)")+
-  scale_fill_viridis_c()+
-  geom_tile(data=extent_df %>% inner_join(species_stack %>% filter(Richness==0), by=c("x","y")), aes(x=x, y=y), fill="grey60")+
-  theme_bw()+
-  theme(axis.title = element_blank(), legend.title = element_blank(),
-        legend.position = "right",legend.direction = "vertical",
-        axis.line = element_blank(), axis.text = element_blank(), axis.ticks = element_blank(),
-        legend.text = element_text(size=30), legend.key.size = unit(1, 'cm'),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.border = element_blank(),
-        panel.background = element_blank())
-ggsave(file=paste0("_figures/SpeciesRichness_", Taxon_name, ".pdf"), 
-       last_plot(),
-       height = 5, width = 8)
+# #- - - - - - - - - - - - - - - - - - - - - -
+# ## Species richness (current) ####
+# #- - - - - - - - - - - - - - - - - - - - - -
+# 
+# species_stack <- terra::rast(paste0("_results/_Maps/SDM_stack_binary_", Taxon_name, ".tif")) 
+# species_stack <- terra::as.data.frame(species_stack, xy = TRUE)
+# 
+# summary(species_stack$Richness)
+# sd(species_stack$Richness)
+# 
+# # species richness
+# ggplot()+
+#   geom_map(data = world.inp, map = world.inp, aes(map_id = region), fill = "grey80") +
+#   coord_cartesian(xlim = c(extent_portugal[1], extent_portugal[2]),
+#                   ylim = c(extent_portugal[3], extent_portugal[4]))+
+#   
+#   geom_tile(data=extent_df %>% inner_join(species_stack %>% filter(Richness>0), by=c("x","y")), 
+#             aes(x=x, y=y, fill=Richness))+
+#   ggtitle("Species richness (number of species)")+
+#   scale_fill_viridis_c()+
+#   geom_tile(data=extent_df %>% inner_join(species_stack %>% filter(Richness==0), by=c("x","y")), aes(x=x, y=y), fill="grey60")+
+#   theme_bw()+
+#   theme(axis.title = element_blank(), legend.title = element_blank(),
+#         legend.position = "right",legend.direction = "vertical",
+#         axis.line = element_blank(), axis.text = element_blank(), axis.ticks = element_blank(),
+#         legend.text = element_text(size=30), legend.key.size = unit(1, 'cm'),
+#         panel.grid.major = element_blank(),
+#         panel.grid.minor = element_blank(),
+#         panel.border = element_blank(),
+#         panel.background = element_blank())
+# ggsave(file=paste0("_figures/SpeciesRichness_", Taxon_name, ".pdf"), 
+#        last_plot(),
+#        height = 5, width = 8)
 
 #- - - - - - - - - - - - - - - - - - - - - -
 ## Species distributions (current) ####
 #- - - - - - - - - - - - - - - - - - - - - -
+
+species_stack <- terra::rast(paste0("_results/_Maps/SDM_stack_binary_", Taxon_name, ".tif"))
+species_stack <- terra::as.data.frame(species_stack, xy = TRUE)
 
 # map binary species distributions
 plots <- lapply(3:(ncol(species_stack)-1), function(s) {try({
