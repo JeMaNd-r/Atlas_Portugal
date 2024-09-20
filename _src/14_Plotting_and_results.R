@@ -127,7 +127,7 @@ df_overview
 
 
 #- - - - - - - - - - - - - - - - - - - - -
-Taxon_name <- "Nematodes"
+Taxon_name <- "Earthworms"
 
 # load number of occurrences per species and focal species names
 species100 <- read.csv(file=paste0("_intermediates/SDM_", Taxon_name, ".csv"))
@@ -639,27 +639,38 @@ dev.off()
 species_stack <- terra::rast(paste0("_results/_Maps/SDM_stack_binary_", Taxon_name, ".tif"))
 species_stack <- terra::as.data.frame(species_stack, xy = TRUE)
 
+occ_points <- read_csv(file=paste0("_intermediates/Occurrence_rasterized_1km_", Taxon_name, ".csv"))
+occ_points <- occ_points %>% pivot_longer(cols = all_of(speciesSub), values_to = "occ")
+
 # map binary species distributions
 plots <- lapply(3:(ncol(species_stack)-1), function(s) {try({
   print(s-2)
   temp_data <- extent_df %>% inner_join(species_stack[!is.na(species_stack[,s]),])
+  temp_occ <- occ_points %>% 
+    filter(name == names(species_stack)[s]) %>% 
+    dplyr::select(!(starts_with(c("PC", "Species"))))
   ggplot()+
-    geom_map(data = world.inp, map = world.inp, aes(map_id = region), fill = "grey80") +
+    geom_map(data = world.inp, map = world.inp, aes(map_id = region), fill = "white", color = "grey80") +
     coord_cartesian(xlim = c(extent_portugal[1], extent_portugal[2]),
                     ylim = c(extent_portugal[3], extent_portugal[4]))+
     
     geom_tile(data=temp_data, 
               aes(x=x, y=y, fill=as.factor(temp_data[,s])))+
+    geom_point(data=temp_occ, 
+               aes(x=x, y=y, color=as.factor(occ)), cex = 0.028, shape = 19)+
+    geom_text(aes(x = -7.65, y = 42.2, label = "Spain"), size = 10, color = "grey60")+
+    geom_text(aes(x = -8.05, y = 40.55, label = "Portugal"), size = 10, color = "grey60")+
     ggtitle(colnames(species_stack)[s])+
-    scale_fill_manual(values=c("1"="#440154","0"="grey60","NA"="lightgrey"))+
+    scale_fill_manual(values=c("1"="forestgreen", "0"="grey90","NA"="white"))+
+    scale_color_manual(values=c("1"="black", "0"="grey60"))+
     theme_bw()+
     guides(fill = guide_legend(# title.hjust = 1, # adjust title if needed
       label.position = "bottom",
       label.hjust = 0.5))+
     theme(axis.title = element_blank(), legend.title = element_blank(),
-          legend.position = c(0.9, 0.1), legend.direction = "horizontal",
+          legend.position = "none", legend.direction = "horizontal",
           legend.key.size = unit(0.2, 'cm'),
-          legend.text = element_text(size=30),
+          legend.text = element_text(size=10),
           title = element_text(size=30),
           axis.line = element_blank(), axis.text = element_blank(), axis.ticks = element_blank(),
           panel.grid.major = element_blank(),
@@ -669,8 +680,8 @@ plots <- lapply(3:(ncol(species_stack)-1), function(s) {try({
 })
 })
 
-pdf(file=paste0("_figures/DistributionMap_bestBinary_", Taxon_name, ".pdf"))
-#png(file=paste0("_figures/DistributionMap_bestBinary_", Taxon_name, ".png"),width=3000, height=3300)
+#pdf(file=paste0("_figures/DistributionMap_bestBinary_", Taxon_name, ".pdf"), )
+png(file=paste0("_figures/DistributionMap_bestBinary_", Taxon_name, ".png"),width=3000, height=3300)
 do.call(grid.arrange, plots)
 dev.off()
 
