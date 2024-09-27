@@ -68,3 +68,19 @@ for(i in c(10, 100)){
   
 }
 
+
+#- - - - - - - - - - - - - - - - - - - - - -
+## Combine 10 and 100 uncertainties ####
+#- - - - - - - - - - - - - - - - - - - - - -
+
+uncertain_10_tif <- terra::rast(paste0("_results/SDM_Uncertainty_", Taxon_name, "_10.tif"))
+uncertain_100_tif <- terra::rast(paste0("_results/SDM_Uncertainty_", Taxon_name, "_100.tif"))
+
+# rename mean and SD layers
+names(uncertain_10_tif)[c(length(names(uncertain_10_tif))-1,length(names(uncertain_10_tif)))] <- c("Mean_10", "SD_10")
+names(uncertain_100_tif)[c(length(names(uncertain_100_tif))-1,length(names(uncertain_100_tif)))] <- c("Mean_100", "SD_100")
+
+uncertain_tif <- c(uncertain_10_tif, uncertain_100_tif)
+uncertain_tif <- uncertain_tif[[sort(names(uncertain_tif))]]
+
+terra::writeRaster(uncertain_tif, file=paste0("_results/_Maps/SDM_Uncertainty_", Taxon_name, ".tif"), overwrite = TRUE)
