@@ -127,7 +127,7 @@ df_overview
 
 
 #- - - - - - - - - - - - - - - - - - - - -
-Taxon_name <- "Earthworms"
+Taxon_name <- "Fungi"
 
 # load number of occurrences per species and focal species names
 species100 <- read.csv(file=paste0("_intermediates/SDM_", Taxon_name, ".csv"))
@@ -140,6 +140,8 @@ if(nrow(species100) != 0){
   species10 <- read.csv(file=paste0("_intermediates/ESM_", Taxon_name, ".csv")) %>% pull(species)
   speciesSub <- species10
 }
+
+if(Taxon_name == "Fungi") species10 <- species10[species10 != "F02025"]
 
 species10
 species100

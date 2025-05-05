@@ -14,7 +14,7 @@ library(here)
 library(raster)
 library(biomod2)
 
-Taxon_name <- "EarthGenus"
+Taxon_name <- "Fungi"
 
 # load number of occurrences per species and focal species names
 speciesSub <- read.csv(file=paste0("_intermediates/SDM_", Taxon_name, ".csv"))

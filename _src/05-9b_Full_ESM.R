@@ -94,7 +94,7 @@ Env_clip <- terra::wrap(Env_clip)
 setwd(paste0(input_dir, "/_results/", Taxon_name))
 set.seed(32639)
 
-for(spID in species_table$species[c(86:857)]){
+for(spID in species_table$species){
   
   # save history
   #sink(paste0("./SDMs/ESM_biomod_", spID, ".txt"))
