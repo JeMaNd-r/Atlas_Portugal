@@ -10,6 +10,13 @@ library(tidyverse)
 library(terra) # to get spatial extent of environmental variables
 library(CoordinateCleaner) # to check for spatial issues
 
+# identify Protist sequences
+#install.packages("BiocManager")
+#BiocManager::install("Biostrings")
+library(Biostrings)
+#devtools::install_github("pr2database/pr2database") #may require Biostrings & blaster
+library("pr2database") # to assign Protist taxa
+
 #- - - - - - - - - - - - - - - - -
 ## Earthworms ####
 #- - - - - - - - - - - - - - - - -
@@ -254,11 +261,18 @@ recon <- recon_raw %>% filter(D == Taxon_name)
 # check taxonomic level
 #View(recon %>% dplyr::select(D:S) %>% unique() %>% arrange(D, P, C, O, F, G, S))
 
+# group same genus together (sum of abundances)
+recon <- recon %>%
+  group_by(D, P, C, O, F, G) %>%
+  summarize(across(where(is.numeric), sum, na.rm=TRUE),
+            across(where(is.character), function(x) paste0(x, collapse = "-")))
+
 # add ID column for taxa
 species_list <- recon %>% 
-  dplyr::select(D:S, `#OTU ID`) %>% 
+  dplyr::select(D:G, `#OTU ID`) %>% 
   unique() %>% 
-  arrange(D, P, C, O, F, G, S, `#OTU ID`) %>% #removing OTU & S column here and above will give ID per genus
+  arrange(D, P, C, O, F, G) %>% #removing OTU & S column here and above will give ID per genus
+  ungroup() %>%
   mutate(taxaID = paste0(substr(Taxon_name, 1, 1), sprintf("%05d", 1:n())))
 species_list
 
@@ -266,20 +280,20 @@ write_csv(species_list, paste0("_results/Species_list_", Taxon_name, ".csv"))
 
 recon <- recon %>% 
   full_join(species_list %>% dplyr::select("#OTU ID", taxaID), by = "#OTU ID") %>%
-  rename("SpeciesID" = taxaID) %>%
+  dplyr::rename("SpeciesID" = taxaID) %>%
   mutate_all(as.character) %>%
   pivot_longer(cols=`1`:`424`, names_to = "SampleID", values_to = "Abundance") %>%
   mutate(Abundance = as.double(Abundance),
          SampleID = as.double(SampleID)) %>%
   filter(!is.na(SpeciesID)) %>% #remove empty samples
   arrange(SampleID)
-recon # 12,246,228
+recon # 421,056
 
 data_xy <- read_csv(file="_data/SoilReCon_Data_4_23_Locations.csv")
 
 recon <- recon %>%
   full_join(data_xy, by="SampleID") %>%
-  rename(x=Longitude, y=Latitude) %>%
+  dplyr::rename(x=Longitude, y=Latitude) %>%
   mutate(Presence = ifelse(Abundance>0, 1, 0)) %>%
   dplyr::select(x,y,SpeciesID, Abundance, Presence)
 recon
@@ -294,7 +308,7 @@ data_raw <- read_csv(paste0("_intermediates/Occurrence_raw_", Taxon_name, ".csv"
 df_cleaning <- tibble::tibble(CleaningStep="merged_RawData", NumberRecords=nrow(data_raw))
 
 # remove data without coordinates or taxa names
-data <- data_raw[complete.cases(data_raw$x, data_raw$y, data_raw$SpeciesID),] #nrow=12,214,584
+data <- data_raw[complete.cases(data_raw$x, data_raw$y, data_raw$SpeciesID),] #nrow=419,968
 data
 
 df_cleaning <- df_cleaning %>% add_row(CleaningStep="merged_coordinates", NumberRecords=nrow(data))
@@ -454,49 +468,107 @@ write_csv(dat_cl, file=paste0("_intermediates/Occurrences_clean_", Taxon_name, "
 # save updated number of records during cleaning process
 write_csv(df_cleaning, file=paste0("_results/NoRecords_cleaning_", Taxon_name, ".csv"))
 
+# write species list Eukaryotes
+write_csv(recon_raw %>% dplyr::select(D, P) %>% unique() %>% arrange(P),
+          file = "_intermediates/Species_list_raw_Eukaryota.csv")
 
 # - - - - - - - - - - - - - - - - - - -
-### Other Eukaryotes ####
+### Protists ####
 # - - - - - - - - - - - - - - - - - - -
 View(unique(recon_raw %>% dplyr::select(D:S)))
 
-write_csv(recon_raw %>% dplyr::select(D, P) %>% unique() %>% arrange(P),
-  file = "_intermediates/Species_list_raw_Eukaryota.csv")
-
 # filter per taxon group
 Taxon_name <- "Protists"
-recon <- recon_raw %>% 
-  filter(str_detect(P, "mycota"))
+
+# get list of protists using PR2Database
+pr_data <- pr2database::pr2_database()
+
+# Note: Eukaroyta_X = Eukaryotes that could not be assigned to any taxon group
+
+# Vector of protist supergroups: 
+# SAR groups: Stramenopiles, Alveolata, Rhizaria
+# no Obazoa (Ophistokonta) as they include fungi & animals: 
+# Excavata maybe excluding Algea
+# Amoebozoa, but also some not-protist taxa
+protist_supergroups <- c("Alveolata", "Amoebozoa", "Excavata", "Obazoa", "Rhizaria", "Stramenopiles", "TSAR")
+
+# Keep only rows where the domain is "Eukaryota" and supergroup matches Protist groups
+protist_data <- pr_data %>%
+  filter((domain == "Eukaryota" & supergroup %in% protist_supergroups) | domain == "Eukaryota:apic") %>%
+  filter(domain != "TSAR:apic")
+
+# Additionally handle Opisthokonta by excluding known non-protists (Fungi and Metazoa)
+protist_data <- protist_data %>%
+  filter(!(supergroup == "Obazoa" & subdivision %in% c("Fungi", "Metazoa")))
+
+protist_data <- protist_data %>%
+  dplyr::select(domain, supergroup, division, subdivision, class, order, family, genus, species) %>%
+  unique()
+View(unique(protist_data %>% dplyr::select(domain:species)))
+
+# # remove unidentified taxa (_X in name)
+# protist_data <- protist_data %>%
+#   filter(!(str_detect(supergroup, "_X"))) %>%
+#   filter(!(str_detect(division, "_X"))) %>%
+#   filter(!(str_detect(subdivision, "_X"))) %>%
+#   filter(!(str_detect(class, "_X"))) %>%
+#   filter(!(str_detect(order, "_X"))) %>%
+#   filter(!(str_detect(family, "_X"))) %>%
+#   filter(!(str_detect(genus, "_X")))
+
+# group same genus together (sum of abundances)
+recon <- recon_raw %>%
+  group_by(D, P, C, O, F, G) %>%
+  summarize(across(where(is.numeric), sum, na.rm=TRUE),
+            across(where(is.character), function(x) paste0(x, collapse = "-")))
+
+# based on sequences, identify OTUs as Protists
+# # remove "wrong" genus and species
+# taxa_to_remove <- c(
+#   unique(recon$D)[!(unique(recon$D) %in% unique(protist_data$domain))],
+#   unique(recon$P)[!(unique(recon$P) %in% unique(protist_data$division) | 
+#                       unique(recon$P) %in% unique(protist_data$subdivision))],
+#   unique(recon$C)[!(unique(recon$C) %in% unique(protist_data$class))],
+#   unique(recon$O)[!(unique(recon$O) %in% unique(protist_data$order))],
+#   unique(recon$F)[!(unique(recon$F) %in% unique(protist_data$family))],
+#   "metagenome",
+#   "uncultured",
+#   NA
+# )
+
+recon <- recon %>%
+  filter(!(G %in% taxa_to_remove)) #662 vs. 339
 
 # check taxonomic level
-View(recon %>% dplyr::select(D:S) %>% unique() %>% arrange(D, P, C, O, F, G, S))
+View(recon %>% dplyr::select(D:G) %>% unique() %>% arrange(D, P, C, O, F, G))
 
 # add ID column for taxa
 species_list <- recon %>% 
-  dplyr::select(D:S, `#OTU ID`) %>% 
+  dplyr::select(D:G, `#OTU ID`) %>% 
   unique() %>% 
-  arrange(D, P, C, O, F, G, S, `#OTU ID`) %>% #removing OTU & S column here and above would give ID per genus
+  arrange(D, P, C, O, F, G) %>% #removing OTU & S column here and above would give ID per genus
   mutate(taxaID = paste0(substr(Taxon_name, 1, 1), sprintf("%05d", 1:n())))
 species_list
 
 write_csv(species_list, paste0("_results/Species_list_", Taxon_name, ".csv"))
 
 recon <- recon %>% 
-  full_join(species_list %>% dplyr::select("#OTU ID", taxaID), by = "#OTU ID") %>%
-  rename("SpeciesID" = taxaID) %>%
+  full_join(species_list %>% dplyr::select(`#OTU ID`, taxaID)) %>%
+  dplyr::rename("SpeciesID" = taxaID) %>%
   mutate_all(as.character) %>%
   pivot_longer(cols=`1`:`999`, names_to = "SampleID", values_to = "Abundance") %>%
   mutate(Abundance = as.double(Abundance),
          SampleID = as.double(SampleID)) %>%
   filter(!is.na(SpeciesID)) %>% #remove empty samples
   arrange(SampleID)
-recon #1,940,178
+recon #129,498
 
 data_xy <- read_csv(file="_data/SoilReCon_Data_4_23_Locations.csv")
 
 recon <- recon %>%
+  ungroup() %>%
   full_join(data_xy, by="SampleID") %>%
-  rename(x=Longitude, y=Latitude) %>%
+  dplyr::rename(x=Longitude, y=Latitude) %>%
   mutate(Presence = ifelse(Abundance>0, 1, 0)) %>%
   dplyr::select(x,y,SpeciesID, Abundance, Presence)
 recon
@@ -511,7 +583,7 @@ data_raw <- read_csv(paste0("_intermediates/Occurrence_raw_", Taxon_name, ".csv"
 df_cleaning <- tibble::tibble(CleaningStep="merged_RawData", NumberRecords=nrow(data_raw))
 
 # remove data without coordinates or taxa names
-data <- data_raw[complete.cases(data_raw$x, data_raw$y, data_raw$SpeciesID),] #nrow=17,864
+data <- data_raw[complete.cases(data_raw$x, data_raw$y, data_raw$SpeciesID),] #nrow=129,159
 data
 
 df_cleaning <- df_cleaning %>% add_row(CleaningStep="merged_coordinates", NumberRecords=nrow(data))
@@ -521,7 +593,7 @@ r <- terra::rast("D:/EIE_Macroecology/_students/Romy/Atlas_Portugal/_intermediat
 extent_Portugal <- terra::ext(r)
 data <- data %>% filter(extent_Portugal[1] <= x &  x <= extent_Portugal[2]) %>% 
   filter(extent_Portugal[3] <= y &  y <= extent_Portugal[4])
-data # nrow= 1,935,099
+data # nrow=129,159
 
 df_cleaning <- df_cleaning %>% add_row(CleaningStep="merged_Portugal", NumberRecords=nrow(data))
 df_cleaning
@@ -549,15 +621,24 @@ View(unique(recon_raw %>% dplyr::select(D:S)))
 
 recon_raw %>% dplyr::select(D, P) %>% unique() %>% print(n=100)
 
+protist_list <- read_csv(paste0("_results/Species_list_", Taxon_name, ".csv"))
+protist_list <- protist_list %>%
+  separate_rows('#OTU ID', sep = "-")
+
 # filter per taxon group
 Taxon_name <- "Eukaroytes"
 recon <- recon_raw %>% 
   filter(!str_detect(P, "mycota")) %>% # no fungi
-  filter() %>% # no protists
+  filter(!(`#OTU ID` %in% protist_list$`#OTU ID`)) %>% # no protists
   filter(P != "Nematozoa") # no nematodes (earthworms anyway not present)
 
 # check taxonomic level
 View(recon %>% dplyr::select(D:S) %>% unique() %>% arrange(D, P, C, O, F, G, S))
+
+# remove metagenome and uncultured taxa
+recon <- recon %>%
+  filter(!(str_detect(S, "metagenome"))) %>%
+  filter(!(str_detect(S, "uncultured")))
 
 # add ID column for taxa
 species_list <- recon %>% 
@@ -571,20 +652,20 @@ write_csv(species_list, paste0("_results/Species_list_", Taxon_name, ".csv"))
 
 recon <- recon %>% 
   full_join(species_list %>% dplyr::select("#OTU ID", taxaID), by = "#OTU ID") %>%
-  rename("SpeciesID" = taxaID) %>%
+  dplyr::rename("SpeciesID" = taxaID) %>%
   mutate_all(as.character) %>%
   pivot_longer(cols=`1`:`999`, names_to = "SampleID", values_to = "Abundance") %>%
   mutate(Abundance = as.double(Abundance),
          SampleID = as.double(SampleID)) %>%
   filter(!is.na(SpeciesID)) %>% #remove empty samples
   arrange(SampleID)
-recon #1,940,178
+recon #42,784
 
 data_xy <- read_csv(file="_data/SoilReCon_Data_4_23_Locations.csv")
 
 recon <- recon %>%
   full_join(data_xy, by="SampleID") %>%
-  rename(x=Longitude, y=Latitude) %>%
+  dplyr::rename(x=Longitude, y=Latitude) %>%
   mutate(Presence = ifelse(Abundance>0, 1, 0)) %>%
   dplyr::select(x,y,SpeciesID, Abundance, Presence)
 recon
@@ -599,7 +680,7 @@ data_raw <- read_csv(paste0("_intermediates/Occurrence_raw_", Taxon_name, ".csv"
 df_cleaning <- tibble::tibble(CleaningStep="merged_RawData", NumberRecords=nrow(data_raw))
 
 # remove data without coordinates or taxa names
-data <- data_raw[complete.cases(data_raw$x, data_raw$y, data_raw$SpeciesID),] #nrow=17,864
+data <- data_raw[complete.cases(data_raw$x, data_raw$y, data_raw$SpeciesID),] #nrow=42,672
 data
 
 df_cleaning <- df_cleaning %>% add_row(CleaningStep="merged_coordinates", NumberRecords=nrow(data))
