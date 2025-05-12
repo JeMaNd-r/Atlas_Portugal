@@ -48,38 +48,8 @@ if(!dir.exists(paste0("_results/", Taxon_name))){
   dir.create(paste0("_results/", Taxon_name, "/Projection"))
 }
 
-myESMOption <- biomod2::BIOMOD_ModelingOptions(
-  GLM = list (#type = "quadratic", #default but switches off if myFormula=NULL
-    #interaction.level = 0,  #default but switches off if myFormula=NULL
-    myFormula = NULL,  #default
-    test = "AIC", #default
-    family = binomial(link = "logit") ), #default
-  
-  MAXENT = list(path_to_maxent.jar = paste0(input_dir, "/_results"), # change it to maxent directory
-                memory_allocated = NULL, # use default from Java defined above
-                visible = FALSE, 	# don't make maxEnt user interface visible
-                linear = TRUE, 	# linear features allowed
-                quadratic = TRUE, # quadratic allowed
-                product = TRUE,	# product allowed
-                threshold = TRUE,	# threshold allowed
-                hinge = TRUE,	# hinge allowed
-                lq2lqptthreshold = 80, # default
-                l2lqthreshold = 10, # default
-                hingethreshold = 15, # default
-                beta_threshold = -1, # default
-                beta_categorical = -1, # default
-                beta_lqp = -1, # default
-                beta_hinge = -1, # default
-                betamultiplier = 1, # default
-                defaultprevalence = 0.5), #default
-  
-  ANN = list(NbCV = 5, #Cross-validations, default = 5
-             size = NULL, #number of units in hidden layer, default -> optimized based on AUC
-             decay = NULL, #weight decay, default -> based on AUC
-             rang = 0.1, #initial random weights, default
-             maxit = 200), #maximum number of iterations, default = 200
-)
-
+# check if MAXENT working
+dismo::maxent()
 
 #- - - - - - - - - - - - - - - - - - - - -
 ## Perform models ####
@@ -92,6 +62,10 @@ Env_clip <- terra::subset(Env_clip, 1:11) #11 = >80%
 Env_clip <- terra::wrap(Env_clip)
 
 setwd(paste0(input_dir, "/_results/", Taxon_name))
+file.copy(from = paste0(input_dir, "/_results/maxent.jar"), 
+          to = paste0(input_dir, "/_results/", Taxon_name),
+          overwrite = FALSE,
+          copy.mode = TRUE)
 set.seed(32639)
 
 for(spID in species_table$species){
@@ -109,9 +83,8 @@ for(spID in species_table$species){
   #- - - - - - - - - - - - - - - - - - - - -
   ### Calibration of simple bivariate models
   tryCatch({
-    my.ESM <- ecospat.ESM.Modeling( data = myBiomodData,
+    my.ESM <- ecospat.ESM.Modeling(data = myBiomodData,
                                   models = c("GLM", "MAXENT", "ANN"),
-                                  models.options = myESMOption,
                                   Prevalence = NULL,
                                   tune = TRUE, # TRUE: estimate optimal parameters for the models
                                   NbRunEval = 10,
@@ -233,3 +206,7 @@ for(spID in species_table$species){
   savehistory(file = paste0("./SDMs/.Rhistory_ESM_biomod_", spID))
   
 }
+
+# remove maxent.jar file from folder
+file.remove(paste0(input_dir, "/_results/", Taxon_name, "/maxent.jar"))
+

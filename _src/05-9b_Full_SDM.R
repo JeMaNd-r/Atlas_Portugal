@@ -9,12 +9,16 @@
 # Note: dismo::maxent() might crash in RStudio
 
 setwd("D:/EIE_Macroecology/_students/Romy/Atlas_Portugal")
-Taxon_name <- "Fungi"
+Taxon_name <- "Protists"
 species_csv <- paste0("SDM_", Taxon_name, ".csv") 
 output_dir <- paste0(getwd(), "/_results")
 input_dir <- getwd()
 
 library(biomod2)
+library(mda)
+library(earth)
+library(randomForest)
+library(xgboost)
 
 gc()
 library(tidyverse)
@@ -41,88 +45,12 @@ if(!dir.exists(paste0("_results/", Taxon_name))){
   dir.create(paste0("_results/", Taxon_name, "/Projection"))
 }
 
-# define parameters of the algorithms
-mySDMOption <- BIOMOD_ModelingOptions(
-  GLM = list (type = "quadratic",
-              interaction.level = 0,
-              myFormula = NULL,
-              test = "AIC",
-              family = binomial(link = "logit") ),
-  
-  GAM = list (algo = "GAM_mgcv",
-              myFormula = NULL,
-              type = "s_smoother",
-              interaction.level = 0,
-              family =  binomial(link = "logit"),
-              method = "GCV.Cp",
-              optimizer = c("outer","newton"),
-              select = FALSE,
-              knots = NULL,
-              paraPen = NULL,
-              k = -1 ), 		#avoid error messages
-  
-  MARS = list(myFormula = NULL,
-              nk = NULL, 		# maximum number of model terms, NULL: max(21, 2*nb_expl_var+1)
-              penalty = 2, 	# default
-              thresh = 0.001, 	# default
-              nprune = 1+length(covarsNames), # max. number of terms including intercept
-              pmethod = "backward" ), #pruning method
-  
-  MAXENT = list(path_to_maxent.jar = paste0(input_dir, "/_results"), # change it to maxent directory
-                memory_allocated = NULL, # use default from Java defined above
-                visible = FALSE, 	# don't make maxEnt user interface visible
-                linear = TRUE, 	# linear features allowed
-                quadratic = TRUE, # quadratic allowed
-                product = TRUE,	# product allowed
-                threshold = TRUE,	# threshold allowed
-                hinge = TRUE,	# hinge allowed
-                lq2lqptthreshold = 80, # default
-                l2lqthreshold = 10, # default
-                hingethreshold = 15, # default
-                beta_threshold = -1, # default
-                beta_categorical = -1, # default
-                beta_lqp = -1, # default
-                beta_hinge = -1, # default
-                betamultiplier = 1, # default
-                defaultprevalence = 0.5 ), #default   
-  
-  GBM = list( distribution = "bernoulli",
-              n.trees = 2500,	# default
-              interaction.depth = 7, # default
-              n.minobsinnode = 5, # default
-              shrinkage = 0.001, # default, learning rate
-              bag.fraction = 0.5, # default, proportion of observations used in selecting variables
-              train.fraction = 0.8, # default 1, train.fraction * nrows(data) observations are used to fit the gbm 
-              cv.folds = 10,	# default 3
-              keep.data = FALSE, # default
-              verbose = FALSE,	# default
-              perf.method = "cv", # default
-              n.cores = 1 ),	# default
-  
-  CTA = list(	method = "class", # default, response is factor
-              parms = "default", # default
-              cost = NULL ),	# default
-  
-  ANN = list(	NbCV = 10, 		# default, number CV
-              size = NULL, 	# default, size parameter will be optimised by cross validation based on model AUC
-              decay = NULL, 	# default, decay parameter will be optimised by cross validation
-              rang = 0.1, 	# default, initial random weights on [-rang, rang] 
-              maxit = 200 ), 	# default, maximum number of iterations
-  
-  SRE = list(quant = 0.025),	# default
-  
-  FDA = list(	method = "mars",	# default, regression method used in optimal scaling
-              add_args = NULL ),# default
-  
-  RF = list(	do.classif = TRUE, # default classification random.forest computed, else regression random.forest 
-             ntree = 500,	# default
-             mtry = 10,		# number of variables randomly sampled as candidates at each split
-             nodesize = 1,	# default 5, but 1 for classification, minimum size of terminal nodes
-             maxnodes = NULL ) # default, maximum number of terminal nodes trees in the forest
-)
+# check if MAXENT working
+dismo::maxent()
 
 # models to predict with
-mymodels <- c("GLM","GBM","GAM","CTA","ANN", "SRE", "FDA","MARS","RF","MAXENT")
+mymodels <- c("ANN", "CTA", "FDA", "GAM", "GBM", "GLM", "MARS", "MAXENT", "MAXNET", "RF",
+              "RFd", "SRE", "XGBOOST")
 
 #- - - - - - - - - - - - - - - - - - - - -
 ## Perform models ####
@@ -135,6 +63,10 @@ Env_clip <- terra::subset(Env_clip, 1:11) #11 = >80%
 Env_clip <- terra::wrap(Env_clip)
 
 setwd(paste0(input_dir, "/_results/", Taxon_name))
+file.copy(from = paste0(input_dir, "/_results/maxent.jar"), 
+          to = paste0(input_dir, "/_results/", Taxon_name),
+          overwrite = FALSE,
+          copy.mode = TRUE)
 set.seed(32639)
 
 for(spID in species_table$species){ 
@@ -154,7 +86,6 @@ for(spID in species_table$species){
   tryCatch({
     myBiomodModelOut <- biomod2::BIOMOD_Modeling(bm.format = myBiomodData,
                                                  models = mymodels,
-                                                 bm.options = mySDMOption,
                                                  CV.nb.rep = 10,   # 10-fold crossvalidation evaluation run
                                                  CV.perc = 0.8, # use subset of the data for training
                                                  #weights = temp_weights$weight, # weight to observations, here based on year
@@ -290,6 +221,9 @@ for(spID in species_table$species){
   savehistory(file = paste0("./SDMs/.Rhistory_SDM_biomod_", spID))
   
 }
+
+# remove maxent.jar file from folder
+file.remove(paste0(input_dir, "/_results/", Taxon_name, "/maxent.jar"))
 
 # #- - - - - - - - - - - - - - - - - - - - -
 # ## Extract names of working algorithms

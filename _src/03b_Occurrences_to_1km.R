@@ -15,7 +15,7 @@ r <- terra::rast("D:/EIE_Macroecology/_students/Romy/Atlas_Portugal/_intermediat
 r <- r[[1]]
 r
 
-Taxon_name <- "Eukaryotes"
+Taxon_name <- "Nematodes"
 # Note: don't do this for "Earthworms". Because of their low occurrence, we will use point-data instead of the gridded data.
 
 ## Load occurrence data

@@ -17,7 +17,7 @@ library(doParallel)
 Env_clip <- terra::rast("_intermediates/EnvPredictor_PCA_1km_POR.tif")
 Env_clip <- terra::subset(Env_clip, 1:11) #11 = >80%
 
-Taxon_name <- "EarthGenus"
+Taxon_name <- "Nematodes"
 
 #- - - - - - - - - - - - - - - - - - - - -
 ## Prepare data ####
@@ -30,7 +30,7 @@ if(Taxon_name == "Earthworms" | Taxon_name == "EarthGenus"){
   mySpeciesOcc <- read_csv(file=paste0("_intermediates/Occurrence_rasterized_1km_", Taxon_name, ".csv"))
 }  
 
-speciesSub <- colnames(mySpeciesOcc %>% dplyr::select(-Sample_ID, -x, -y))
+speciesSub <- colnames(mySpeciesOcc %>% dplyr::select(-x, -y))
 speciesSub
 
 # create subfolder if not existing
@@ -77,7 +77,7 @@ for(spID in speciesSub){
                                                             expl.var = Env_clip,
                                                             resp.xy = myResp[,c("x", "y")],
                                                             resp.name = spID,
-                                                            PA.nb.rep = 0,
+                                                            PA.nb.rep = 0
                                                             #PA.nb.absences = 10000, # not needed because true absence data available
                                                             #PA.strategy = "random"
                                                             )
@@ -102,7 +102,7 @@ records <- lapply(as.list(speciesSub), function(x){
   # extract occurrences & pseudo-absences
   myData <- cbind(myBiomodData@data.species, myBiomodData@coord, myBiomodData@data.env.var)
   myData$SpeciesID <- spID
-  myData <- myData %>% rename("occ" = "myBiomodData@data.species")
+  myData <- myData %>% dplyr::rename("occ" = "myBiomodData@data.species")
   myData[is.na(myData$occ),"occ"] <- 0 #replace pseudo (NA) by 0
   
   myData
@@ -129,16 +129,16 @@ head(records)
 # })
 # }
 
-nrow(records) # Crassiclitellata: 930, nematoda f: 23625; fungi: ; bacteria: 16,641,669
-nrow(records %>% filter(occ==1)) # 162; Nf: 5218; F: ; B: 2,383,587
-nrow(records %>% filter(occ==0)) # 768; Nf: 18417; F: ; B: 14,258,082
+nrow(records) # Crassiclitellata: 930, nematoda f: 23625; fungi s: 872009, g: 98564; bacteria: 16,641,669; protists: 109049, Eukaryotes: 56446 
+nrow(records %>% filter(occ==1)) # 162; Nf: 5218; Fs: 61483, g: 14713; B: 2,383,587; P: 20455; Eu: 8979
+nrow(records %>% filter(occ==0)) # 768; Nf: 18417; Fs: 810526, g: 83851; B: 14,258,082; P: 88594, Eu: 47467
 
 records_species <- records %>% group_by(SpeciesID) %>% summarize(across("occ", sum)) %>%
   full_join(records %>% filter(occ==0) %>% group_by(SpeciesID) %>% count(name="Absences")) 
 records_species
 
-records_species %>% filter(occ>=10) %>% count() # C: 5 species/ 4 genera, N: 29f / 17g, F: , B: 25653
-records_species %>% filter(occ>=100) %>% count() # C: 0 species (max. possible occ=92, max. occ=50) / 0 genera, N: 22f / 8g, F: , B: 7997
+records_species %>% filter(occ>=10) %>% count() # C: 5 species/ 4 genera, N: 29f / 17g, Fs: 1023, g:157, B: 25653, P: 133, EU: 82
+records_species %>% filter(occ>=100) %>% count() # C: 0 species (max. possible occ=92, max. occ=50) / 0 genera, N: 22f / 8g, Fs: 166/g:50, B: 7997, P: 82, Eu: 35
 
 write_csv(records, file=paste0("_results/Occurrence_rasterized_1km_BIOMOD_", Taxon_name, ".csv"))
 records <- read_csv(file=paste0("_results/Occurrence_rasterized_1km_BIOMOD_", Taxon_name, ".csv"))
@@ -148,13 +148,13 @@ records_species <- read_csv(file=paste0("_results/Species_list_", Taxon_name, ".
 
 # save species IDs for species with >100 BIOMOD presences
 write_csv(records_species %>% filter(occ>=100) %>% 
-            dplyr::select(SpeciesID) %>% rename(species = SpeciesID) %>% unique(),
+            dplyr::select(SpeciesID) %>% dplyr::rename(species = SpeciesID) %>% unique(),
           file=paste0("_intermediates/SDM_", Taxon_name, ".csv"))
 
 # save IDS for species with >10 and <100 presences
 write_csv(records_species %>% filter(occ>=10 & 
                                        occ<100) %>% 
-            dplyr::select(SpeciesID) %>% rename(species = SpeciesID) %>% unique(),
+            dplyr::select(SpeciesID) %>% dplyr::rename(species = SpeciesID) %>% unique(),
           file=paste0("_intermediates/ESM_", Taxon_name, ".csv"))
 
 

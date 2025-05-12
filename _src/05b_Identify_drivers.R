@@ -18,6 +18,7 @@ library(raster)
 library(biomod2) # also to create pseudo-absences
 
 library(dismo) # for MaxEnt and BRT
+dismo::maxent()
 # download maxent.jar 3.3.3k, and place the file in the
 # desired folder
 # utils::download.file(url = "https://raw.githubusercontent.com/mrmaxent/Maxent/master/ArchivedReleases/3.3.3k/maxent.jar", 
@@ -31,7 +32,7 @@ library(rJava)
 # change temporary directory for files
 #raster::rasterOptions(tmpdir = "D:/00_datasets/Trash")
 
-Taxon_name <- "EarthGenus"
+Taxon_name <- "Eukaryotes"
 
 # load number of occurrences per species and focal species names
 speciesSub <- read.csv(file=paste0("_intermediates/SDM_", Taxon_name, ".csv"))
