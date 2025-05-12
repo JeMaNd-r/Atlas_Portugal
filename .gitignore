@@ -45,6 +45,11 @@ docs/
 # translation temp files
 po/*~
 
+# renv
+/renv/library/
+/renv/staging/
+*.Rproj.user
+
 # RStudio Connect folder
 rsconnect/
 *.Rproj
