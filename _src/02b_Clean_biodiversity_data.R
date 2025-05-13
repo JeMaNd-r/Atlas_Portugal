@@ -114,6 +114,8 @@ write_csv(df_cleaning, file=paste0("_results/NoRecords_cleaning_", Taxon_name, "
 #- - - - - - - - - - - - - - - - -
 ## Nematodes ####
 #- - - - - - - - - - - - - - - - -
+Taxon_name <- "Nematodes" #NemaGenus or Nematodes
+
 # load dataset
 recon_raw <- read_delim(file="_data/SoilReCon_nematodes.csv")
 recon_raw
@@ -122,41 +124,60 @@ recon_raw %>% dplyr::select(taxonomy_f, taxonomy_g) %>% unique() #45
 
 recon <- recon_raw %>% 
   mutate_all(as.character) %>%
-  pivot_longer(cols=`1`:`462`, names_to = "SampleID", values_to = "Abundance") %>%
+  pivot_longer(cols=colnames(recon_raw)[colnames(recon_raw) %in% 1:1000], 
+               names_to = "SampleID", values_to = "Abundance") %>%
   mutate(Abundance = as.double(Abundance),
          SampleID = as.double(SampleID)) %>%
   filter(!is.na(ID)) %>% #remove empty samples
   arrange(SampleID)
 recon #17,864
 
+# fix spelling mistake
+recon <- recon %>%
+  mutate(taxonomy_f = ifelse(str_detect(taxonomy_f,"Tylenchidae"), 
+                             "Tylenchidae", taxonomy_f)) %>%
+  rename(Family = taxonomy_f, Genus = taxonomy_g) 
+
+# if investigating at family level, take sum of (genus) abundances
+if(Taxon_name == "Nematodes"){
+  recon <- recon %>%
+    group_by(Family, SampleID) %>%
+    summarize(across(where(is.numeric), \(x) sum(x, na.rm = TRUE)),
+              across(where(is.character), function(x) paste0(unique(x), collapse = "-")))
+}
+
+# save taxon list
+species_list <- recon %>% 
+  dplyr::select(Family, Genus, ID) %>% 
+  unique() %>%
+  arrange(Family, Genus) %>% 
+  ungroup() %>%
+  mutate(taxaID = paste0(substr(Taxon_name, 1, 1), sprintf("%04d", 1:n())))
+species_list
+
+write_csv(species_list, paste0("_results/Species_list_", Taxon_name, ".csv"))
+
 data_xy <- read_csv(file="_data/SoilReCon_Data_4_23_Locations.csv")
 
 recon <- recon %>%
+  full_join(species_list) %>%
+  dplyr::rename("SpeciesID" = taxaID) %>%
   full_join(data_xy, by="SampleID") %>%
   rename(x=Longitude, y=Latitude) %>%
   mutate(Presence = ifelse(Abundance>0, 1, 0)) %>%
   dplyr::select(-SampleID)
 recon
 
-# fix spelling mistake
-recon <- recon %>%
-  mutate(taxonomy_f = ifelse(str_detect(taxonomy_f,"Tylenchidae"), "Tylenchidae", taxonomy_f))
-
 # check taxonomic levels
-recon %>% filter(Abundance!=0) %>% count(taxonomy_g) #19 (-2)
-recon %>% filter(Abundance!=0) %>% count(taxonomy_f) %>% print(n=100) #35 (-4)
+recon %>% filter(Abundance!=0) %>% count(Genus) 
+recon %>% filter(Abundance!=0) %>% count(Family) %>% print(n=100) #34
 
 # filter relevant columns & rows
-recon <- recon  %>%
-  # filter(!is.na(taxonomy_g)) %>% #NemaGenus
-  # mutate(SpeciesID = substr(taxonomy_g, 1, 9)) %>% #NemaGenus
-  mutate(SpeciesID = substr(taxonomy_f, 1, 8)) %>% #Nematodes (family level)
+recon <- recon %>%
   dplyr::select(x,y, SpeciesID, Abundance, Presence)
 
-Taxon_name <- "Nematodes" #NemaGenus or Nematodes
-
 # Save
-write_csv(recon, "_intermediates/Occurrence_raw_", Taxon_name,".csv")
+write_csv(recon, paste0("_intermediates/Occurrence_raw_", Taxon_name,".csv"))
 
 # - - - - - - - - - - - - - - - - - - -
 data_raw <- read_csv(paste0("_intermediates/Occurrence_raw_", Taxon_name, ".csv"))
@@ -165,7 +186,7 @@ data_raw <- read_csv(paste0("_intermediates/Occurrence_raw_", Taxon_name, ".csv"
 df_cleaning <- tibble::tibble(CleaningStep="merged_RawData", NumberRecords=nrow(data_raw))
 
 # remove data without coordinates or taxa names
-data <- data_raw[complete.cases(data_raw$x, data_raw$y, data_raw$SpeciesID),] #nrow=17,864
+data <- data_raw[complete.cases(data_raw$x, data_raw$y, data_raw$SpeciesID),] #nrow=13,804
 data
 
 df_cleaning <- df_cleaning %>% add_row(CleaningStep="merged_coordinates", NumberRecords=nrow(data))
@@ -175,7 +196,7 @@ r <- terra::rast("D:/EIE_Macroecology/_students/Romy/Atlas_Portugal/_intermediat
 extent_Portugal <- terra::ext(r)
 data <- data %>% filter(extent_Portugal[1] <= x &  x <= extent_Portugal[2]) %>% 
   filter(extent_Portugal[3] <= y &  y <= extent_Portugal[4])
-data # nrow=17,864
+data # nrow=13,804
 
 df_cleaning <- df_cleaning %>% add_row(CleaningStep="merged_Portugal", NumberRecords=nrow(data))
 df_cleaning

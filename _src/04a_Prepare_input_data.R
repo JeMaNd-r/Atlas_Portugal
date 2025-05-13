@@ -143,16 +143,22 @@ records_species %>% filter(occ>=100) %>% count() # C: 0 species (max. possible o
 write_csv(records, file=paste0("_results/Occurrence_rasterized_1km_BIOMOD_", Taxon_name, ".csv"))
 records <- read_csv(file=paste0("_results/Occurrence_rasterized_1km_BIOMOD_", Taxon_name, ".csv"))
 
-write_csv(records_species, file=paste0("_results/Species_list_", Taxon_name, ".csv"))
-records_species <- read_csv(file=paste0("_results/Species_list_", Taxon_name, ".csv"))
+# merge with species list
+species_list <- read_csv(paste0("_results/Species_list_", Taxon_name, ".csv"))
+
+species_list <- species_list %>%
+  rename(SpeciesID = taxaID) %>%
+  full_join(records_species, by = "SpeciesID")
+write_csv(species_list, file=paste0("_results/Species_list_", Taxon_name, ".csv"))
+species_list <- read_csv(file=paste0("_results/Species_list_", Taxon_name, ".csv"))
 
 # save species IDs for species with >100 BIOMOD presences
-write_csv(records_species %>% filter(occ>=100) %>% 
+write_csv(species_list %>% filter(occ>=100) %>% 
             dplyr::select(SpeciesID) %>% dplyr::rename(species = SpeciesID) %>% unique(),
           file=paste0("_intermediates/SDM_", Taxon_name, ".csv"))
 
 # save IDS for species with >10 and <100 presences
-write_csv(records_species %>% filter(occ>=10 & 
+write_csv(species_list %>% filter(occ>=10 & 
                                        occ<100) %>% 
             dplyr::select(SpeciesID) %>% dplyr::rename(species = SpeciesID) %>% unique(),
           file=paste0("_intermediates/ESM_", Taxon_name, ".csv"))
