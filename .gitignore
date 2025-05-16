@@ -82,3 +82,4 @@ _intermediates/Occurrence_raw_nematodes.csv
 _intermediates/Occurrences_clean_nematodes.csv
 /_intermediates
 /_results
+*.docx
