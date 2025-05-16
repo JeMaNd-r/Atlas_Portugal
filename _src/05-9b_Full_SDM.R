@@ -9,7 +9,7 @@
 # Note: dismo::maxent() might crash in RStudio
 
 setwd("D:/EIE_Macroecology/_students/Romy/Atlas_Portugal")
-Taxon_name <- "Protists"
+Taxon_name <- "Crassiclitellata"
 species_csv <- paste0("SDM_", Taxon_name, ".csv") 
 output_dir <- paste0(getwd(), "/_results")
 input_dir <- getwd()

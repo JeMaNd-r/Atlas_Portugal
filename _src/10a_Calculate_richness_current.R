@@ -10,7 +10,7 @@ gc()
 library(tidyverse)
 library(raster)
 
-Taxon_name <- "Nematodes"
+Taxon_name <- "Crassiclitellata"
 
 # load number of occurrences per species and focal species names
 speciesSub <- read.csv(file=paste0("_intermediates/SDM_", Taxon_name, ".csv"))

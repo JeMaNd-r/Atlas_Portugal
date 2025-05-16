@@ -17,21 +17,25 @@ library(doParallel)
 Env_clip <- terra::rast("_intermediates/EnvPredictor_PCA_1km_POR.tif")
 Env_clip <- terra::subset(Env_clip, 1:11) #11 = >80%
 
-Taxon_name <- "Nematodes"
+Taxon_name <- "Crassiclitellata"
 
 #- - - - - - - - - - - - - - - - - - - - -
 ## Prepare data ####
-if(Taxon_name == "Earthworms" | Taxon_name == "EarthGenus"){
+if(Taxon_name == "Earthworms" | Taxon_name == "EarthGenus"| Taxon_name == "Crassiclitellata"){
   mySpeciesOcc <- read_csv(file=paste0("_intermediates/Occurrences_clean_", Taxon_name, ".csv"))
   mySpeciesOcc <- mySpeciesOcc %>% pivot_wider(id_cols = c(Sample_ID, x, y), names_from = SpeciesID, values_from = Presence, values_fn = max)
   
   data_env <- read_csv(file="_intermediates/SoilReCon_Data_4_23_LocationsEW_PCA.csv")
+  
+  speciesSub <- colnames(mySpeciesOcc %>% dplyr::select(-x, -y, -Sample_ID))
+  speciesSub
 }else{
   mySpeciesOcc <- read_csv(file=paste0("_intermediates/Occurrence_rasterized_1km_", Taxon_name, ".csv"))
+  
+  speciesSub <- colnames(mySpeciesOcc %>% dplyr::select(-x, -y))
+  speciesSub
 }  
 
-speciesSub <- colnames(mySpeciesOcc %>% dplyr::select(-x, -y))
-speciesSub
 
 # create subfolder if not existing
 if(!dir.exists(paste0("_intermediates/BIOMOD_data/", Taxon_name))){ 
@@ -48,7 +52,7 @@ for(spID in speciesSub){
           # ones with 1 instead of 3 cores running in parallel
           #if(file.exists(paste0(data_wd, "/_intermediates/BIOMOD_data/", Taxon_name, "/BiomodData_", Taxon_name,"_", spID, ".RData"))==FALSE){
           
-          if(Taxon_name == "Earthworm" | Taxon_name == "EarthGenus"){
+          if(Taxon_name == "Earthworm" | Taxon_name == "EarthGenus" | Taxon_name == "Crassiclitellata"){
             myExpl <- data_env %>% rename("Sample_ID" = ID) %>% dplyr::select(-x, -y) %>%
               full_join(mySpeciesOcc %>% dplyr::select("Sample_ID", "x", "y", all_of(spID)), by = "Sample_ID")
             myExpl <- myExpl[!is.na(myExpl[,spID]),]
@@ -144,7 +148,11 @@ write_csv(records, file=paste0("_results/Occurrence_rasterized_1km_BIOMOD_", Tax
 records <- read_csv(file=paste0("_results/Occurrence_rasterized_1km_BIOMOD_", Taxon_name, ".csv"))
 
 # merge with species list
-species_list <- read_csv(paste0("_results/Species_list_", Taxon_name, ".csv"))
+if(Taxon_name == "Crassiclitellata"){
+  species_list <- data.frame(taxaID = unique(records$SpeciesID))
+} else {
+  species_list <- read_csv(paste0("_results/Species_list_", Taxon_name, ".csv"))
+}
 
 species_list <- species_list %>%
   rename(SpeciesID = taxaID) %>%

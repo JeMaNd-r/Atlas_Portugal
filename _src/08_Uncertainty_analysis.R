@@ -11,7 +11,7 @@ library(here)
 
 library(raster)
 
-Taxon_name <- "Bacteria"
+Taxon_name <- "Crassiclitellata"
 
 # load number of occurrences per species and focal species names
 speciesSub <- read.csv(file=paste0("_intermediates/SDM_", Taxon_name, ".csv"))
@@ -27,8 +27,6 @@ speciesSub
 species10 <- read_csv(file=paste0("_intermediates/ESM_", Taxon_name, ".csv"))$species
 species100 <- read_csv(file=paste0("_intermediates/SDM_", Taxon_name, ".csv"))$species
 
-if(Taxon_name == "Fungi") species10 <- species10[species10 != "F02025"]
-
 covarsNames <- paste0("PC", 1:11)
 
 #- - - - - - - - - - - - - - - - - - - - -
@@ -41,7 +39,7 @@ Env_clip <- terra::subset(Env_clip, 1:11) #11 = >80%
 #- - - - - - - - - - - - - - - - - - - - - -
 ## Create maps and calculate richness ####
 #- - - - - - - - - - - - - - - - - - - - - -
-for(i in c(10, 100)){
+for(i in c(10, 100)){try({
   print(i)
   
   # list all projections
@@ -67,21 +65,28 @@ for(i in c(10, 100)){
   
   extent_df <- terra::as.data.frame(uncertain_rast, xy=TRUE) %>% filter(Mean<uncertain_thresh & !is.na(Mean)) %>% dplyr::select(x,y)
   save(extent_df, file=paste0("_results/SDM_Uncertainty_extent_", Taxon_name, "_", i, ".RData"))
-}
+})}
 
 
 #- - - - - - - - - - - - - - - - - - - - - -
 ## Combine 10 and 100 uncertainties ####
 #- - - - - - - - - - - - - - - - - - - - - -
 
-uncertain_10_tif <- terra::rast(paste0("_results/SDM_Uncertainty_", Taxon_name, "_10.tif"))
+try(uncertain_10_tif <- terra::rast(paste0("_results/SDM_Uncertainty_", Taxon_name, "_10.tif")))
 uncertain_100_tif <- terra::rast(paste0("_results/SDM_Uncertainty_", Taxon_name, "_100.tif"))
 
 # rename mean and SD layers
-names(uncertain_10_tif)[c(length(names(uncertain_10_tif))-1,length(names(uncertain_10_tif)))] <- c("Mean_10", "SD_10")
+try(names(uncertain_10_tif)[c(length(names(uncertain_10_tif))-1,length(names(uncertain_10_tif)))] <- c("Mean_10", "SD_10"))
 names(uncertain_100_tif)[c(length(names(uncertain_100_tif))-1,length(names(uncertain_100_tif)))] <- c("Mean_100", "SD_100")
 
-uncertain_tif <- c(uncertain_10_tif, uncertain_100_tif)
-uncertain_tif <- uncertain_tif[[sort(names(uncertain_tif))]]
+if(exists("uncertain_thresh_10")){
+  uncertain_tif <- c(uncertain_10_tif, uncertain_100_tif)
+  uncertain_tif <- uncertain_tif[[sort(names(uncertain_tif))]]
 
-terra::writeRaster(uncertain_tif, file=paste0("_results/_Maps/SDM_Uncertainty_", Taxon_name, ".tif"), overwrite = TRUE)
+  terra::writeRaster(uncertain_tif, file=paste0("_results/_Maps/SDM_Uncertainty_", Taxon_name, ".tif"), overwrite = TRUE)
+} else {
+  uncertain_tif <- uncertain_100_tif
+  uncertain_tif <- uncertain_tif[[sort(names(uncertain_tif))]]
+  
+  terra::writeRaster(uncertain_tif, file=paste0("_results/_Maps/SDM_Uncertainty_", Taxon_name, "_100.tif"), overwrite = TRUE)
+}

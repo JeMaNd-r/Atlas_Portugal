@@ -57,10 +57,10 @@ recon <- recon %>% dplyr::select(Sample_ID, Genus, POINT_X, POINT_Y, Abundance) 
 recon
 
 # Save
-write_csv(recon, "_intermediates/Occurrence_raw_Earthworms.csv")
+write_csv(recon, "_intermediates/Occurrence_raw_Crassiclitellata.csv")
 
 # - - - - - - - - - - - - - - - - - - -
-Taxon_name <- "Earthworms"
+Taxon_name <- "Crassiclitellata"
 data_raw <- read_csv(paste0("_intermediates/Occurrence_raw_", Taxon_name, ".csv"))
 
 # create a table to see how many records get removed.

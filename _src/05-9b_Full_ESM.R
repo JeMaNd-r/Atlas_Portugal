@@ -8,7 +8,7 @@
 # Note: dismo::maxent() might crash in RStudio
 
 setwd("D:/EIE_Macroecology/_students/Romy/Atlas_Portugal")
-Taxon_name <- "Fungi"
+Taxon_name <- "Crassiclitellata"
 species_csv <- paste0("ESM_", Taxon_name, ".csv") 
 output_dir <- paste0(getwd(), "/_results")
 input_dir <- getwd()
@@ -84,7 +84,7 @@ for(spID in species_table$species){
   ### Calibration of simple bivariate models
   tryCatch({
     my.ESM <- ecospat.ESM.Modeling(data = myBiomodData,
-                                  models = c("GLM", "MAXENT", "ANN"),
+                                  models = c("GLM", "MAXENT"), #,"ANN"
                                   Prevalence = NULL,
                                   tune = TRUE, # TRUE: estimate optimal parameters for the models
                                   NbRunEval = 10,
@@ -139,7 +139,7 @@ for(spID in species_table$species){
   
   # save prediction in different folder
   tryCatch({
-    terra::writeRaster(temp_prediction, file=paste0("./Projection/", spID, ".tif"))
+    terra::writeRaster(temp_prediction, file=paste0("./Projection/", spID, ".tif"), overwrite = TRUE)
   }, error = function(e) {print(e); print("FAILED: Save projection")}
   )
   
@@ -152,7 +152,7 @@ for(spID in species_table$species){
   
   # save prediction in different folder
   tryCatch({
-    terra::writeRaster(temp_prediction, file=paste0("./Uncertainty/CV_", spID, ".tif"))
+    terra::writeRaster(temp_prediction, file=paste0("./Uncertainty/CV_", spID, ".tif"), overwrite = TRUE)
   }, error = function(e) {print(e); print("FAILED: Save uncertainty")}
   )
   

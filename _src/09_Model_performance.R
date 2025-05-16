@@ -14,7 +14,7 @@ library(here)
 library(raster)
 library(biomod2)
 
-Taxon_name <- "Fungi"
+Taxon_name <- "Crassiclitellata"
 
 # load number of occurrences per species and focal species names
 speciesSub <- read.csv(file=paste0("_intermediates/SDM_", Taxon_name, ".csv"))
@@ -56,8 +56,6 @@ data_eval <- lapply(data_eval, function(x){
 data_eval <- do.call(rbind, data_eval)
 data_eval <- data_eval %>% filter(Model == "ensemble")
 data_eval
-
-if(Taxon_name == "Nematodes") data_eval$Species <- gsub(data_eval$Species, pattern="[.]", replacement="") 
 
 write_csv(data_eval %>% dplyr::select(-Model), 
           paste0("_results/Model_evaluation_", Taxon_name, ".csv"))
