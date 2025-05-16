@@ -13,11 +13,8 @@ library(tidyverse)
 library(terra)
 library(sf)
 
-## Define input data directory ####
-data_wd <- "D:/EIE_Macroecology/_students/Romy/Atlas_Portugal"
-
 # define names of taxonomic groups
-taxaNames <- c("Nematodes") 
+taxaNames <- c("Fungi", "Nematodes", "Protists", "Eukaryotes", "Bacteria") #"Crassiclitellata", 
 taxaNames
 
 #- - - - - - - - - - - - - - - - - - - - - -
@@ -28,24 +25,33 @@ uncertain_list <- as.list(taxaNames)
 
 # load uncertainty extent for all taxa
 uncertain_list <- lapply(uncertain_list, function(x){
-  #load(file=paste0(data_wd, "/_results/SDM_Uncertainty_extent_", x, "_10.RData")) #extent_df
+  #load(file=paste0("_results/SDM_Uncertainty_extent_", x, "_10.RData")) #extent_df
   
   # load uncertainty
-  uncertain_tif <- terra::rast(paste0(data_wd, "/_results/_Maps/SDM_Uncertainty_", x, ".tif"))
+  if(paste0("SDM_Uncertainty_", x, ".tif") %in%
+     list.files(paste0("_results/_Maps/"))){
+       uncertain_tif <- terra::rast(paste0("_results/_Maps/SDM_Uncertainty_", x, ".tif"))
+  } else {
+    uncertain_tif <- terra::rast(paste0("_results/_Maps/SDM_Uncertainty_", x, "_100.tif"))
+  }
   
   # load species names
-  species10 <- read_csv(file=paste0(data_wd, "/_intermediates/ESM_", x, ".csv"))$species
-  species100 <- read_csv(file=paste0(data_wd, "/_intermediates/SDM_", x, ".csv"))$species
+  species10 <- read_csv(file=paste0("_intermediates/ESM_", x, ".csv"))$species
+  species100 <- read_csv(file=paste0("_intermediates/SDM_", x, ".csv"))$species
   
   # save threshold for uncertainty
-  uncertain_thresh_10 <- as.numeric(stats::quantile(uncertain_tif$Mean_10, 0.9, na.rm=TRUE))
+  try(uncertain_thresh_10 <- as.numeric(stats::quantile(uncertain_tif$Mean_10, 0.9, na.rm=TRUE)))
   uncertain_thresh_100 <- as.numeric(stats::quantile(uncertain_tif$Mean_100, 0.9, na.rm=TRUE))
   
   # transform to binary based on uncertainty
-  uncertain_10$extent <- ifelse(values(uncertain_tif$Mean_10) >=uncertain_thresh_10, 0, 1)
-  uncertain_100$extent <- ifelse(values(uncertain_tif$Mean_100) >=uncertain_thresh_100, 0, 1)
+  try(uncertain_tif$extent_10 <- ifelse(values(uncertain_tif$Mean_10) >=uncertain_thresh_10, 0, 1))
+  uncertain_tif$extent_100 <- ifelse(values(uncertain_tif$Mean_100) >=uncertain_thresh_100, 0, 1)
   
-  uncertain_tif$extent <- ifelse(values(uncertain_10$extent) != 0 & values(uncertain_100$extent) != 0, 1, 0)
+  if(exists("uncertain_thresh_10")){
+    uncertain_tif$extent <- ifelse(values(uncertain_tif$extent_10) != 0 & values(uncertain_tif$extent_100) != 0, 1, 0)
+  } else {
+    uncertain_tif$extent <- ifelse(values(uncertain_tif$extent_100) != 0, 1, 0)
+  }
   
   uncertain_tif
 })
@@ -59,7 +65,7 @@ names(uncertain_list) <- taxaNames
 richness_list <- as.list(taxaNames)
 
 richness_list <- lapply(names(uncertain_list), function(x){
-  species_stack <- terra::rast(paste0(data_wd, "/_results/_Maps/SDM_stack_binary_", x, ".tif"))
+  species_stack <- terra::rast(paste0("_results/_Maps/SDM_stack_binary_", x, ".tif"))
   species_stack <- terra::mask(species_stack, mask=uncertain_list[[x]]$extent, maskvalues = 0)
   
   species_stack
@@ -92,9 +98,9 @@ richness_stacks <- do.call(c, richness_list)
 ### Save each layer as individual tif ####
 #- - - - - - - - - - - - - - - - - - - - - -
 
-dir.create(paste0(data_wd, "/_results/Zonation"))
-#dir.create(paste0(data_wd, "/_results/Zonation/NoData"))
-for(i in taxaNames) dir.create(paste0(data_wd, "/_results/Zonation/", i))
+dir.create(paste0("_results/Zonation"))
+#dir.create(paste0("_results/Zonation/NoData"))
+for(i in taxaNames) dir.create(paste0("_results/Zonation/", i))
 
 names_list <- lapply(names(richness_list), function(x){
   names_list <- c()
@@ -117,12 +123,12 @@ names_list <- lapply(names(richness_list), function(x){
       
       # save
       writeRaster(richness_list[[x]][[i]], 
-                  paste0(data_wd, "/_results/Zonation/", x, "/", taxa_name, "_Rich.tif"),
+                  paste0("_results/Zonation/", x, "/", taxa_name, "_Rich.tif"),
                   names = paste0(taxa_name, "_Rich")
                   )
     }else{
       writeRaster(richness_list[[x]][[i]], 
-                  paste0(data_wd, "/_results/Zonation/", x, "/", taxa_name, "_", i, ".tif"),
+                  paste0("_results/Zonation/", x, "/", taxa_name, "_", i, ".tif"),
                   names = paste0(taxa_name, "_", i)
                   )
     }
@@ -133,27 +139,27 @@ names_list <- lapply(names(richness_list), function(x){
 # save name coding
 names_list <- do.call(rbind, names_list)
 colnames(names_list) <- c("Taxon", "ID", "SpeciesID", "No_cells_presence")
-names_list <- as.tibble(names_list)
+names_list <- as_tibble(names_list)
 names_list
 
-write_csv(names_list,  paste0(data_wd, "/_results/Zonation/TaxaNames_legend.csv"))
+write_csv(names_list,  paste0("_results/Zonation/TaxaNames_legend.csv"))
 
 # define weigth for each layer
-names_list <- read_csv(paste0(data_wd, "/_results/Zonation/TaxaNames_legend.csv"))
+names_list <- read_csv(paste0("_results/Zonation/TaxaNames_legend.csv"))
 write_delim(names_list %>%
               filter(SpeciesID != "Richness") %>%
               mutate("weight" = "1.0", 
                      "filename" = paste0("data/", ID, ".tif"),
                      "group" = as.numeric(as.factor(Taxon))) %>%
               dplyr::select(weight, filename, group),
-            paste0(data_wd, "/_results/Zonation/features.txt"))
+            paste0("_results/Zonation/features.txt"))
 
 
 #- - - - - - - - - - - - - - - - - - - - - -
-## Prepare threat & protection layers ####
+## Prepare protection layers ####
 
 # load one cropped species layer
-r <- terra::rast(paste0(data_wd, "/_results/Zonation/", taxaNames[1], "/", substr(taxaNames[1], 1, 5), "_", 1, ".tif"))
+r <- terra::rast(paste0("_results/Zonation/", taxaNames[1], "/", substr(taxaNames[1], 1, 5), "_", 1, ".tif"))
 r$all <- 1
 r <- terra::subset(r, "all")
 
@@ -171,16 +177,16 @@ rm(shp2)
 
 shp_all
 
-## crop to Portuguese extent ####
+## crop to Portuguese extent
 shp_por <- terra::crop(shp_all, r)
 rm(shp_all)
 gc()
 
 # save
-terra::writeVector(shp_por, filename = paste0(data_wd, "/_intermediates/Protection_POR.shp"))
+terra::writeVector(shp_por, filename = paste0("_intermediates/Protection_POR.shp"))
 
 # load protection for portugal
-shp_por <- sf::st_read(paste0(data_wd, "/_intermediates/Protection_POR.shp"))
+shp_por <- sf::st_read(paste0("_intermediates/Protection_POR.shp"))
 
 # create empty stack to store PA types as layers
 protect_stack <- terra::rast()
@@ -218,40 +224,52 @@ protect_stack$PA <- ifelse(values(protect_stack$PA_coverage) > 0.5, 1, 0)
 protect_stack$IUCN_PA <- ifelse(values(protect_stack$IUCN_coverage) > 0.5, 1, 0)
 
 # save
-terra::writeRaster(protect_stack, filename = paste0(data_wd, "/_intermediates/Protection_POR_coverage.tif"))
+terra::writeRaster(protect_stack, filename = paste0("_intermediates/Protection_POR_coverage.tif"))
 
 # save layers for Zonation
 for(ly in names(protect_stack)[names(protect_stack) %in% c("Ia", "Ib", "II", "III", "IV", "V", "VI")]){
   terra::writeRaster(protect_stack[[ly]], 
-                     filename = paste0(data_wd, "/_intermediates/POR_", 
+                     filename = paste0("_results/Zonation/POR_", 
                                        ly, 
                                        ".tif"))
   print(paste0(ly, " ready."))
 }
 
-features_pa <- data.frame("ID" = list.files(paste0(data_wd, "/_intermediates/"), pattern = "^POR_"))
+features_pa <- data.frame("ID" = list.files(paste0("_results/Zonation/"), pattern = "^POR_"))
 features_pa <- features_pa %>%
   mutate("weight" = "1.0", 
          "group" = "Protection") %>%
   dplyr::select(weight, ID, group)
          
 write_delim(features_pa,
-            paste0(data_wd, "/_results/Zonation/features_pa.txt"))
+            paste0("_results/Zonation/features_pa.txt"))
+
+#- - - - - - - - - - - - - - - - - - - - - -
+## Threat layers ####
+
+
+
+
+
+
+
 
 #- - - - - - - - - - - - - - - - - - - - - -
 ## Test if all same extent ####
 
-rast1 <- terra::rast(paste0(data_wd, "/_results/Zonation/Earthworms/Earth_3.tif"))
-rast2 <- terra::rast(paste0(data_wd, "/_results/Zonation/Earthworms/Earth_Rich.tif"))
-rast3 <- terra::rast(paste0(data_wd, "/_results/Zonation/Nematodes/Nemat_5.tif"))
-rast4 <- terra::rast(paste0(data_wd, "/_results/Zonation/Nematodes/Nemat_20.tif"))
+rast1 <- terra::rast(paste0("_results/Zonation/Fungi/Fungi_3.tif"))
+rast2 <- terra::rast(paste0("_results/Zonation/Fungi/Fungi_Rich.tif"))
+rast3 <- terra::rast(paste0("_results/Zonation/Nematodes/Nemat_5.tif"))
+rast4 <- terra::rast(paste0("_results/Zonation/Nematodes/Nemat_20.tif"))
+rast5 <- terra::rast(paste0("_intermediates/Protection_POR_coverage.tif"))
 
 terra::compareGeom(rast1, rast2)
 terra::compareGeom(rast1, rast3)
 terra::compareGeom(rast3, rast4)
+terra::compareGeom(rast1, rast5)
 
 par(mfrow = c(2,2))
 terra::plot(rast1)
 terra::plot(rast2)
 terra::plot(rast3)
-terra::plot(rast4)
+terra::plot(rast5$PA_coverage)
