@@ -84,7 +84,7 @@ for(spID in species_table$species){
   ### Calibration of simple bivariate models
   tryCatch({
     my.ESM <- ecospat.ESM.Modeling(data = myBiomodData,
-                                  models = c("GLM", "MAXENT"), #,"ANN"
+                                  models = c("GAM", "MAXENT"), #,"ANN"
                                   Prevalence = NULL,
                                   tune = TRUE, # TRUE: estimate optimal parameters for the models
                                   NbRunEval = 10,
@@ -176,20 +176,21 @@ for(spID in species_table$species){
   }, error = function(e) {print(e); print("FAILED: Variable contribution")}
   )
   
-  ## get the response plots of ESMs
-  tryCatch({
-    my.ESM_responsePlot <- ecospat.ESM.responsePlot(my.ESM_EF,
-                                                  my.ESM,
-                                                  fixed.var.metric = 'mean')
-  }, error = function(e) {print(e); print("FAILED: Response plot")}
-  )
+  # ## get the response plots of ESMs
+  # tryCatch({
+  #   my.ESM_responsePlot <- ecospat.ESM.responsePlot(my.ESM_EF,
+  #                                                 my.ESM,
+  #                                                 fixed.var.metric = 'mean')
+  # }, error = function(e) {print(e); print("FAILED: Response plot")}
+  # )
 
   #- - - - - - - - - - - - - - - - - - - - -
   ## save model output
   tryCatch({
     biomod_list <- list(validation = my.ESM_evaluations$ESM.evaluations, 
-                      varImp = my.ESM_varImp,
-                      varResponse = my.ESM_responsePlot)
+                      varImp = my.ESM_varImp#,
+                      #varResponse = my.ESM_responsePlot
+                      )
     save(biomod_list, file=paste0("./SDMs/ESM_biomod_", spID, ".RData"))
   }, error = function(e) {print(e); print("FAILED: Save model output")}
   )
