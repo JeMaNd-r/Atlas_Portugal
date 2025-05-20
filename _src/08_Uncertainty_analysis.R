@@ -73,11 +73,11 @@ for(i in c(10, 100)){try({
 #- - - - - - - - - - - - - - - - - - - - - -
 
 try(uncertain_10_tif <- terra::rast(paste0("_results/SDM_Uncertainty_", Taxon_name, "_10.tif")))
-uncertain_100_tif <- terra::rast(paste0("_results/SDM_Uncertainty_", Taxon_name, "_100.tif"))
+try(uncertain_100_tif <- terra::rast(paste0("_results/SDM_Uncertainty_", Taxon_name, "_100.tif")))
 
 # rename mean and SD layers
 try(names(uncertain_10_tif)[c(length(names(uncertain_10_tif))-1,length(names(uncertain_10_tif)))] <- c("Mean_10", "SD_10"))
-names(uncertain_100_tif)[c(length(names(uncertain_100_tif))-1,length(names(uncertain_100_tif)))] <- c("Mean_100", "SD_100")
+try(names(uncertain_100_tif)[c(length(names(uncertain_100_tif))-1,length(names(uncertain_100_tif)))] <- c("Mean_100", "SD_100"))
 
 if(exists("uncertain_thresh_10")){
   uncertain_tif <- c(uncertain_10_tif, uncertain_100_tif)

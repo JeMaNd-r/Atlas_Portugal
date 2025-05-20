@@ -40,7 +40,13 @@ species_rast <- terra::rast(extent=(Env_clip))
 rm(Env_clip); gc()
 
 # load model evaluation data (to extract threshold for species)
-data_eval <- read.csv(paste0("_results/Model_evaluation_", Taxon_name, ".csv"))
+if(file.exists(paste0("_results/Model_evaluation_", Taxon_name, ".csv"))){
+  data_eval <- read.csv(paste0("_results/Model_evaluation_", Taxon_name, ".csv"))
+  # transform to binary
+  mean_thresh <- mean(data_eval$MaxTSS * 1000) # only used when no species-specific threshold available
+} else {
+  mean_thresh <- 500
+}
 
 # list all projections
 species_rast <- list.files(paste0("_results/", Taxon_name, "/Projection"), full.names = TRUE) 
@@ -49,9 +55,6 @@ species_rast
 # load into list
 species_rast <- terra::rast(species_rast)
 species_rast
-
-# transform to binary
-mean_thresh <- mean(data_eval$MaxTSS * 1000) # only used when no species-specific threshold available
 
 for(spID in speciesSub){ try({
   print(spID)
