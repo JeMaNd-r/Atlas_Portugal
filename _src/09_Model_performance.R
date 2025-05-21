@@ -60,30 +60,3 @@ data_eval
 write_csv(data_eval %>% dplyr::select(-Model), 
           paste0("_results/Model_evaluation_", Taxon_name, ".csv"))
 
-#- - - - - - - - - - - - - - - - - - - - -
-### similar step but in loop
-# # for loop through all species
-# for(spID in speciesSub){ try({
-#   
-#   file_name <- list.files(paste0("_results/", Taxon_name, "/SDMs"), full.names = TRUE,
-#                           pattern = paste0("_biomod_", spID, ".RData"))
-#     
-#   ## Load probability maps 
-#   load(file=file_name) #biomod_list
-#   temp_validation <- biomod_list$validation %>% 
-#     as_tibble() %>% 
-#     mutate(Model = rownames(biomod_list$validation),
-#            SpeciesID = spID) %>%
-#     dplyr::select(SpeciesID, Model, AUC, MaxTSS)
-#   
-#   data_eval <- rbind(data_eval, temp_validation)
-#   
-#   print(paste0(spID, " successfully loaded."))
-# }, silent=T)}
-# 
-# data_eval; str(data_eval)
-# summary(data_eval)
-# 
-# write_csv(data_eval, paste0("_results/Model_evaluation_", Taxon_name, ".csv"))
-
-
