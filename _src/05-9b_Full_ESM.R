@@ -84,7 +84,7 @@ for(spID in species_table$species){
   ### Calibration of simple bivariate models
   tryCatch({
     my.ESM <- ecospat.ESM.Modeling(data = myBiomodData,
-                                  models = c("GAM", "MAXENT"), #,"ANN"
+                                  models = c("GLM", "MAXENT"), #,"ANN"
                                   Prevalence = NULL,
                                   tune = TRUE, # TRUE: estimate optimal parameters for the models
                                   NbRunEval = 10,
