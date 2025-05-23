@@ -64,6 +64,27 @@ terra::writeRaster(degr_salinization, "../Soil_degradation_drivers/ESDAC_Degrada
 terra::writeRaster(degr_erosion, "../Soil_degradation_drivers/ESDAC_Degradation/Degradation_erosion_POR.tif")
 terra::writeRaster(degr_sum, "../Soil_degradation_drivers/ESDAC_Degradation/Degradation_sum_POR.tif")
 
+degr_compaction <- terra::rast("../Soil_degradation_drivers/ESDAC_Degradation/Degradation_compaction_POR.tif")
+degr_salinization <- terra::rast("../Soil_degradation_drivers/ESDAC_Degradation/Degradation_salinization_POR.tif")
+degr_erosion <- terra::rast("../Soil_degradation_drivers/ESDAC_Degradation/Degradation_erosion_POR.tif")
+degr_sum <- terra::rast("../Soil_degradation_drivers/ESDAC_Degradation/Degradation_sum_POR.tif")
+
+degr_compaction <- degr_compaction > 0.5
+degr_salinization <- degr_salinization > 0.5
+degr_erosion <- degr_erosion > 0.5
+degr_sum <- degr_sum > 0 #any threat
+
+par(mfrow = c(2,2))
+terra::plot(degr_compaction)
+terra::plot(degr_salinization)
+terra::plot(degr_erosion)
+terra::plot(degr_sum) 
+
+terra::writeRaster(degr_compaction, "../Soil_degradation_drivers/ESDAC_Degradation/Degradation_compaction_POR_binary.tif")
+terra::writeRaster(degr_salinization, "../Soil_degradation_drivers/ESDAC_Degradation/Degradation_salinization_POR_binary.tif")
+terra::writeRaster(degr_erosion, "../Soil_degradation_drivers/ESDAC_Degradation/Degradation_erosion_POR_binary.tif")
+terra::writeRaster(degr_sum, "../Soil_degradation_drivers/ESDAC_Degradation/Degradation_sum_POR_binary.tif")
+
 #- - - - - - - - - - - - - - - - - - - - - -
 ## Climate velocity ####
 #- - - - - - - - - - - - - - - - - - - - - -
