@@ -39,13 +39,23 @@ if(!dir.exists(paste0("_results/_Maps"))){
 species_rast <- terra::rast(extent=(Env_clip))
 rm(Env_clip); gc()
 
-# load model evaluation data (to extract threshold for species)
-if(file.exists(paste0("_results/Model_evaluation_", Taxon_name, ".csv"))){
-  data_eval <- read.csv(paste0("_results/Model_evaluation_", Taxon_name, ".csv"))
-  # transform to binary
-  mean_thresh <- mean(data_eval$MaxTSS * 1000) # only used when no species-specific threshold available
-} else {
-  mean_thresh <- 500
+# # load model evaluation data (to extract threshold for species)
+# if(file.exists(paste0("_results/Model_evaluation_", Taxon_name, ".csv"))){
+#   data_eval <- read.csv(paste0("_results/Model_evaluation_", Taxon_name, ".csv"))
+#   # transform to binary
+#   mean_thresh <- mean(data_eval$MaxTSS * 1000) # only used when no species-specific threshold available
+# } else {
+#   mean_thresh <- 500
+# }
+
+# load SDM thresholds
+if(file.exists(paste0("_results/Model_thresholds_SDM_", Taxon_name, ".csv"))){
+  data_thres_sdm <- read_csv(paste0("_results/Model_thresholds_SDM_", Taxon_name, ".csv"))
+}
+
+# load ESM thresholds
+if(file.exists(paste0("_results/Model_thresholds_", Taxon_name, ".csv"))){
+  data_thres <- read_csv(paste0("_results/Model_thresholds_", Taxon_name, ".csv"))
 }
 
 # list all projections
@@ -59,11 +69,30 @@ species_rast
 for(spID in speciesSub){ try({
   print(spID)
   
-  # Transform to binary
-  temp_thresh <- data_eval[data_eval$Species==spID, "MaxTSS"] * 1000
-  
-  if(length(temp_thresh)==0) temp_thresh <- mean_thresh
-  print(temp_thresh)
+  if(exists("data_thres") & spID %in% unique(data_thres$Species)){ 
+    
+    #take maximum threshold value of selected threshold metrices
+    temp_thresh <- max(unlist(data_thres[data_thres$Species==spID, 
+                                         c("Kappa", "AUC", "SomersD", "TSS", "TSS.th", "MPA0.95", "Boyce.th.max")]), 
+                       na.rm=TRUE)* 1000 #max TSS value (from GLM and MAXENT full models)
+    print(temp_thresh)
+    
+  } else {
+    if((exists("data_thres_sdm") & spID %in% unique(data_thres_sdm$species))){
+      # temp_thresh <- mean(c(data_eval[data_eval$Species==substr(spID, 1,9), "AUC"],
+      #                       data_eval[data_eval$Species==substr(spID, 1,9), "MaxTSS"]))* 1000
+      
+      #take maximum threshold value of selected threshold metrices
+      temp_thresh <- max(unlist(data_thres_sdm[data_thres_sdm$species==spID, 
+                                               c("KAPPA", "ROC", "TSS", "MPA", "BOYCE")]), 
+                         na.rm=TRUE) #max TSS value (from GLM and MAXENT full models)
+      print(temp_thresh)
+
+    } else {
+    
+    if(length(temp_thresh)==0 | temp_thresh == -Inf) temp_thresh <- 500
+    print(temp_thresh)
+  }}
   
   temp_rast <- species_rast[[spID]]
   
@@ -74,7 +103,7 @@ for(spID in speciesSub){ try({
   # classify the values into three groups 
   # all values >= temp_thresh become 1
   m <- c(0, temp_thresh, 0,
-         temp_thresh, 1001, 1)
+         temp_thresh, 2000, 1)
   rclmat <- matrix(m, ncol=3, byrow=TRUE)
   temp_rast <- terra::classify(temp_rast, rclmat, include.lowest=TRUE)
   
@@ -86,13 +115,16 @@ for(spID in speciesSub){ try({
 }, silent=TRUE)}
 species_rast
 
+plot(species_rast)
+
 #- - - - - - - - - - - - - - - - - - - - - -
 ## Calculate richness ####
 species_rast$Richness <- terra::app(species_rast, sum, na.rm=TRUE)
+plot(species_rast$Richness)
 
 #- - - - - - - - - - - - - - - - - - - - - -
 ## Save species stack ####
-terra::writeRaster(species_rast, file=paste0("_results/_Maps/SDM_stack_binary_", Taxon_name, ".tif"))
+terra::writeRaster(species_rast, file=paste0("_results/_Maps/SDM_stack_binary_", Taxon_name, ".tif"), overwrite=TRUE)
 
 #load(file=paste0(data_wd, "/_results/_Maps/SDM_stack_binary_", Taxon_name, ".RData")) #species_stack
 
