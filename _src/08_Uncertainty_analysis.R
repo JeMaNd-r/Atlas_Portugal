@@ -11,7 +11,7 @@ library(here)
 
 library(raster)
 
-Taxon_name <- "Crassiclitellata"
+Taxon_name <- "Fungi"
 
 # load number of occurrences per species and focal species names
 speciesSub <- read.csv(file=paste0("_intermediates/SDM_", Taxon_name, ".csv"))
@@ -57,11 +57,11 @@ for(i in c(10, 100)){try({
   uncertain_rast <- terra::rast(paste0("_results/SDM_Uncertainty_", Taxon_name, "_", i, ".tif"))
   
   # extract area with uncertainty lower than threshold
-  print(summary(uncertain_rast$Mean)) #3rd Qu. E: 421.2, N: 10-449.1 100-52.12, F: 10-370.6 100-49.08 
+  print(summary(uncertain_rast$Mean)) #3rd Qu. E: 421.2, N: 10-449.1 100-52.12, 
   
   uncertain_thresh <- stats::quantile(uncertain_rast$Mean, 0.9, na.rm=TRUE)
   print(uncertain_thresh)
-  # 0.9-quantile E:452.75, N: 10-485.5714 100-57.45907, F: 10-381.4763 100-53.97525
+  # 0.9-quantile E:452.75, N: 10-485.5714 100-57.45907, F: 10-488.0533  100-46.26587, Eu: 10-491.0213 100-48.25674, Pr: 10-495.4902 100-46.05416
   
   extent_df <- terra::as.data.frame(uncertain_rast, xy=TRUE) %>% filter(Mean<uncertain_thresh & !is.na(Mean)) %>% dplyr::select(x,y)
   save(extent_df, file=paste0("_results/SDM_Uncertainty_extent_", Taxon_name, "_", i, ".RData"))

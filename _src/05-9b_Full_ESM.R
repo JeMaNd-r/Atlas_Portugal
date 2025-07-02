@@ -5,7 +5,7 @@
 #                                           #
 #- - - - - - - - - - - - - - - - - - - - - -#
 
-for(Taxon_name in c("Protists", "Eukaryotes", "Bacteria")){ #"Crassiclitellata", "Nematodes", "Fungi", 
+for(Taxon_name in c("Bacteria")){ #"Crassiclitellata", "Nematodes", "Fungi", "Protists", "Eukaryotes", 
   print(Taxon_name)
   
   # Note: dismo::maxent() might crash in RStudio
@@ -18,7 +18,9 @@ for(Taxon_name in c("Protists", "Eukaryotes", "Bacteria")){ #"Crassiclitellata",
   library(biomod2)
   
   gc()
-  library(tidyverse)
+  #library(tidyverse)
+  library(dplyr)
+  library(readr)
   
   # read functions for ensemble of small models (ESM)
   #devtools::install_github("ecospat/ecospat/ecospat@dev")
@@ -70,7 +72,7 @@ for(Taxon_name in c("Protists", "Eukaryotes", "Bacteria")){ #"Crassiclitellata",
             copy.mode = TRUE)
   set.seed(32639)
   
-  if(Taxon_name == "Protists") species_table <- species_table[51,]
+  if(Taxon_name == "Bacteria") species_table <- species_table[87:277,]
   
   for(spID in species_table$species){
     
