@@ -64,7 +64,7 @@ df_overview <- data.frame(Taxon = "Taxon",
            Plot_uncertain = TRUE,
            Plot_predict = TRUE)[0,]
 
-for(temp_taxon in c("Earthworms", "EarthGenus", "Nematodes", "NemaGenus", "Fungi", "Bacteria", "Eukaryotes", "Protists")){
+for(temp_taxon in c("Earthworms", "EarthGenus", "Crassiclitellata", "Nematodes", "NemaGenus", "Fungi", "Bacteria", "Eukaryotes", "Protists")){
   print(temp_taxon)
   temp_overview <- data.frame(test=1)
   
@@ -127,7 +127,7 @@ df_overview
 
 
 #- - - - - - - - - - - - - - - - - - - - -
-Taxon_name <- "Fungi"
+Taxon_name <- "Protists"
 
 # load number of occurrences per species and focal species names
 species100 <- read.csv(file=paste0("_intermediates/SDM_", Taxon_name, ".csv"))
@@ -359,7 +359,9 @@ ggplot(var_imp %>%
                              "Agriculture"="#7CAE00","Dist_Urban"="#7CAE00", "Forest_Coni"="#7CAE00", "Forest_Deci"="#7CAE00", "NDVI"="#698B22", "Pastures"="#698B22",  "Pop_Dens"="#698B22", "Shrubland"="#698B22",
                              "CEC"="#C77CFF","Clay.Silt"="#C77CFF", "Cu"="#C77CFF", "Hg"="#C77CFF","Moisture"="#BF3EFF", "N"="#BF3EFF", "P"="#BF3EFF", "pH"="#BF3EFF", "SOC"="#BF3EFF"))+
   theme_bw()+
-  theme(legend.position = "bottom", axis.text = element_text(size=15), axis.title = element_text(size=15),
+  theme(legend.position = "bottom", 
+        axis.text.x = element_text(size=15), axis.text.y = element_text(size=5),
+        axis.title = element_text(size=15),
         legend.text = element_text(size=15), legend.title = element_blank())
 
 ggsave(paste0("_figures/VariableImportance_MaxEnt_species_", Taxon_name, ".pdf"), height=11, width=9)
@@ -475,30 +477,34 @@ ggplot()+
         panel.background = element_blank())
 ggsave(file=paste0("_figures/Uncertainty_ESM_", Taxon_name, ".pdf"), height = 5, width = 8)
 
-# SDMs
-ggplot()+
-  geom_map(data = world.inp, map = world.inp, aes(map_id = region), fill = "grey80") +
-  geom_tile(data=uncertain_100 %>% filter(Mean!=0), aes(x=x, y=y, fill=Mean))+
-  ggtitle("Coefficient of variation averaged across SDMs")+
-  coord_cartesian(xlim = c(extent_portugal[1], extent_portugal[2]),
-                  ylim = c(extent_portugal[3], extent_portugal[4]))+
-  
-  scale_fill_viridis_c(option="E")+
-  theme_bw()+  
-  
-  theme(axis.title = element_blank(), legend.title = element_blank(),
-        legend.position ="right",legend.direction = "vertical",
-        axis.line = element_blank(), axis.text = element_blank(), axis.ticks = element_blank(),
-        legend.text = element_text(size=20), legend.key.size = unit(1, 'cm'),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.border = element_blank(),
-        panel.background = element_blank())
-ggsave(file=paste0("_figures/Uncertainty_SDM_", Taxon_name, ".pdf"), height = 5, width = 8)
+if(Taxon_name != "Crassiclitellata"){
+  # SDMs
+  ggplot()+
+    geom_map(data = world.inp, map = world.inp, aes(map_id = region), fill = "grey80") +
+    geom_tile(data=uncertain_100 %>% filter(Mean!=0), aes(x=x, y=y, fill=Mean))+
+    ggtitle("Coefficient of variation averaged across SDMs")+
+    coord_cartesian(xlim = c(extent_portugal[1], extent_portugal[2]),
+                    ylim = c(extent_portugal[3], extent_portugal[4]))+
+    
+    scale_fill_viridis_c(option="E")+
+    theme_bw()+  
+    
+    theme(axis.title = element_blank(), legend.title = element_blank(),
+          legend.position ="right",legend.direction = "vertical",
+          axis.line = element_blank(), axis.text = element_blank(), axis.ticks = element_blank(),
+          legend.text = element_text(size=20), legend.key.size = unit(1, 'cm'),
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          panel.border = element_blank(),
+          panel.background = element_blank())
+  ggsave(file=paste0("_figures/Uncertainty_SDM_", Taxon_name, ".pdf"), height = 5, width = 8)
+}
 
 # uncertainty threshold
-if(Taxon_name == "Earthworms") temp_thresh <- 452.75
-if(Taxon_name == "Nematodes") temp_thresh10 <- 485.5714; temp_thresh100 <- 57.45907
+# if(Taxon_name == "Earthworms") temp_thresh <- 452.75
+# if(Taxon_name == "Nematodes") temp_thresh10 <- 485.5714; temp_thresh100 <- 57.45907
+temp_thresh10 <- stats::quantile(uncertain_10$Mean, 0.9, na.rm=TRUE)
+temp_thresh100 <- stats::quantile(uncertain_100$Mean, 0.9, na.rm=TRUE)
 
 # ESMs
 ggplot()+
@@ -521,84 +527,139 @@ ggplot()+
         panel.background = element_blank())
 ggsave(file=paste0("_figures/Uncertainty_ESM_", Taxon_name, "_", temp_thresh10, ".pdf"), height = 5, width = 8)
 
-# SDMs
-ggplot()+
-  geom_map(data = world.inp, map = world.inp, aes(map_id = region), fill = "grey80") +
-  coord_cartesian(xlim = c(extent_portugal[1], extent_portugal[2]),
-                  ylim = c(extent_portugal[3], extent_portugal[4]))+
-  
-  geom_tile(data=uncertain_100 %>% filter(Mean<temp_thresh100), aes(x=x, y=y, fill=Mean))+
-  ggtitle("Coefficient of variation averaged across SDMs")+
-  scale_fill_viridis_c(option="E")+
-  geom_tile(data=uncertain_100 %>% filter(Mean>=temp_thresh100), aes(x=x, y=y), fill="linen")+
-  theme_bw()+
-  theme(axis.title = element_blank(), legend.title = element_blank(),
-        legend.position = "right",legend.direction = "vertical",
-        axis.line = element_blank(), axis.text = element_blank(), axis.ticks = element_blank(),
-        legend.text = element_text(size=20), legend.key.size = unit(1, 'cm'),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.border = element_blank(),
-        panel.background = element_blank())
-ggsave(file=paste0("_figures/Uncertainty_SDM_", Taxon_name, "_", temp_thresh100, ".pdf"), height = 5, width = 8)
-
-#- - - - - - - - - - - - - - - - - - - - - -
-## Map species uncertainty maps ####
-# to plot uncertainty of species with temp_thresh, add commented text and
-# change limits of scale_fill to c(0, temp_thresh) in both plots and legend
-uncertain_df <- uncertain_10; temp_thresh <- temp_thresh10
-#uncertain_df <- uncertain_100; temp_thresh <- temp_thresh100
-
-plots <- lapply(3:(ncol(uncertain_df)-2), function(s) {try({
-  print(s-2)
+if(Taxon_name != "Crassiclitellata"){
+  # SDMs
   ggplot()+
     geom_map(data = world.inp, map = world.inp, aes(map_id = region), fill = "grey80") +
     coord_cartesian(xlim = c(extent_portugal[1], extent_portugal[2]),
                     ylim = c(extent_portugal[3], extent_portugal[4]))+
     
-    geom_tile(data=uncertain_df[!is.na(uncertain_df[,s]) & uncertain_df[,s]>0,], 
-              aes(x=x, y=y, 
-                  fill=uncertain_df[!is.na(uncertain_df[,s]) & uncertain_df[,s]>0,s]))+
-    ggtitle(colnames(uncertain_df)[s])+
-    annotate(geom="text", x=-3, y=68, label=colnames(uncertain_df)[s], color="black", size=15)+
-    scale_fill_gradient2(midpoint = temp_thresh, limits = c(0,1000),
-                         low = "blue",
-                         high = "red")+
+    geom_tile(data=uncertain_100 %>% filter(Mean<temp_thresh100), aes(x=x, y=y, fill=Mean))+
+    ggtitle("Coefficient of variation averaged across SDMs")+
+    scale_fill_viridis_c(option="E")+
+    geom_tile(data=uncertain_100 %>% filter(Mean>=temp_thresh100), aes(x=x, y=y), fill="linen")+
     theme_bw()+
     theme(axis.title = element_blank(), legend.title = element_blank(),
-          legend.position = "none",
-          axis.line = element_blank(), axis.text = element_blank(), 
-          axis.ticks = element_blank(),
+          legend.position = "right",legend.direction = "vertical",
+          axis.line = element_blank(), axis.text = element_blank(), axis.ticks = element_blank(),
+          legend.text = element_text(size=20), legend.key.size = unit(1, 'cm'),
           panel.grid.major = element_blank(),
           panel.grid.minor = element_blank(),
           panel.border = element_blank(),
           panel.background = element_blank())
+  ggsave(file=paste0("_figures/Uncertainty_SDM_", Taxon_name, "_", temp_thresh100, ".pdf"), height = 5, width = 8)
+}
+
+#- - - - - - - - - - - - - - - - - - - - - -
+## Map species uncertainty maps ####
+# to plot uncertainty of species with temp_thresh, add commented text and
+# change limits of scale_fill to c(0, temp_thresh) in both plots and legend
+if(!(Taxon_name %in% c("Fungi", "Bacteria", "Protists", "Eukaryotes"))){
+  uncertain_df <- uncertain_10; temp_thresh <- temp_thresh10
+  
+  plots <- lapply(3:(ncol(uncertain_df)-2), function(s) {try({
+    print(s-2)
+    ggplot()+
+      geom_map(data = world.inp, map = world.inp, aes(map_id = region), fill = "grey80") +
+      coord_cartesian(xlim = c(extent_portugal[1], extent_portugal[2]),
+                      ylim = c(extent_portugal[3], extent_portugal[4]))+
+      
+      geom_tile(data=uncertain_df[!is.na(uncertain_df[,s]) & uncertain_df[,s]>0,], 
+                aes(x=x, y=y, 
+                    fill=uncertain_df[!is.na(uncertain_df[,s]) & uncertain_df[,s]>0,s]))+
+      ggtitle(colnames(uncertain_df)[s])+
+      annotate(geom="text", x=-3, y=68, label=colnames(uncertain_df)[s], color="black", size=15)+
+      scale_fill_gradient2(midpoint = temp_thresh, limits = c(0,1000),
+                           low = "blue",
+                           high = "red")+
+      theme_bw()+
+      theme(axis.title = element_blank(), legend.title = element_blank(),
+            legend.position = "none",
+            axis.line = element_blank(), axis.text = element_blank(), 
+            axis.ticks = element_blank(),
+            panel.grid.major = element_blank(),
+            panel.grid.minor = element_blank(),
+            panel.border = element_blank(),
+            panel.background = element_blank())
+    })
   })
-})
+  
+  legend <- g_legend(ggplot(data=uncertain_df[!is.na(uncertain_df[,3]) & uncertain_df[,3]>0,], 
+                            aes(x=x, y=y, fill=uncertain_df[!is.na(uncertain_df[,3]),3]))+
+                       geom_tile()+
+                       scale_fill_gradient2(midpoint = temp_thresh, limits = c(0,1000),
+                                            low = "blue",
+                                            high = "red")+
+                       theme_bw()+
+                       theme(axis.title = element_blank(), legend.title = element_blank(),
+                             legend.position = c(0.5, 0.5), legend.direction = "horizontal",
+                             legend.text = element_text(size=20), legend.key.size = unit(1.5, 'cm'),
+                             axis.line = element_blank(), axis.text = element_blank(), axis.ticks = element_blank(),
+                             panel.grid.major = element_blank(),
+                             panel.grid.minor = element_blank(),
+                             panel.border = element_blank(),
+                             panel.background = element_blank())) 
+  
+  plots2 <- c(plots, list(legend))
+  
+  pdf(file=paste0("_figures/Uncertainty_ESM_allSpecies_", Taxon_name, ".pdf"), height = 10, width = 10)
+  do.call(grid.arrange, plots2)
+  dev.off()
+}
 
-legend <- g_legend(ggplot(data=uncertain_df[!is.na(uncertain_df[,3]) & uncertain_df[,3]>0,], 
-                          aes(x=x, y=y, fill=uncertain_df[!is.na(uncertain_df[,3]),3]))+
-                     geom_tile()+
-                     scale_fill_gradient2(midpoint = temp_thresh, limits = c(0,1000),
-                                          low = "blue",
-                                          high = "red")+
-                     theme_bw()+
-                     theme(axis.title = element_blank(), legend.title = element_blank(),
-                           legend.position = c(0.5, 0.5), legend.direction = "horizontal",
-                           legend.text = element_text(size=20), legend.key.size = unit(1.5, 'cm'),
-                           axis.line = element_blank(), axis.text = element_blank(), axis.ticks = element_blank(),
-                           panel.grid.major = element_blank(),
-                           panel.grid.minor = element_blank(),
-                           panel.border = element_blank(),
-                           panel.background = element_blank())) 
-
-plots2 <- c(plots, list(legend))
-
-pdf(file=paste0("_figures/Uncertainty_ESM_allSpecies_", Taxon_name, ".pdf"), height = 10, width = 10)
-#pdf(file=paste0("_figures/Uncertainty_SDM_allSpecies_", Taxon_name, ".pdf"), height = 10, width = 10)
-#png(file=paste0("_figures/Uncertainty_allSpecies_", Taxon_name, ".png"),width=3000, height=3000)
-do.call(grid.arrange, plots2)
-dev.off()
+if(!(Taxon_name %in% c("Fungi", "Bacteria", "Protists", "Eukaryotes"))){
+  # 100
+  uncertain_df <- uncertain_100; temp_thresh <- temp_thresh100
+  
+  plots <- lapply(3:(ncol(uncertain_df)-2), function(s) {try({
+    print(s-2)
+    ggplot()+
+      geom_map(data = world.inp, map = world.inp, aes(map_id = region), fill = "grey80") +
+      coord_cartesian(xlim = c(extent_portugal[1], extent_portugal[2]),
+                      ylim = c(extent_portugal[3], extent_portugal[4]))+
+      
+      geom_tile(data=uncertain_df[!is.na(uncertain_df[,s]) & uncertain_df[,s]>0,], 
+                aes(x=x, y=y, 
+                    fill=uncertain_df[!is.na(uncertain_df[,s]) & uncertain_df[,s]>0,s]))+
+      ggtitle(colnames(uncertain_df)[s])+
+      annotate(geom="text", x=-3, y=68, label=colnames(uncertain_df)[s], color="black", size=15)+
+      scale_fill_gradient2(midpoint = temp_thresh, limits = c(0,1000),
+                           low = "blue",
+                           high = "red")+
+      theme_bw()+
+      theme(axis.title = element_blank(), legend.title = element_blank(),
+            legend.position = "none",
+            axis.line = element_blank(), axis.text = element_blank(), 
+            axis.ticks = element_blank(),
+            panel.grid.major = element_blank(),
+            panel.grid.minor = element_blank(),
+            panel.border = element_blank(),
+            panel.background = element_blank())
+  })
+  })
+  
+  legend <- g_legend(ggplot(data=uncertain_df[!is.na(uncertain_df[,3]) & uncertain_df[,3]>0,], 
+                            aes(x=x, y=y, fill=uncertain_df[!is.na(uncertain_df[,3]),3]))+
+                       geom_tile()+
+                       scale_fill_gradient2(midpoint = temp_thresh, limits = c(0,1000),
+                                            low = "blue",
+                                            high = "red")+
+                       theme_bw()+
+                       theme(axis.title = element_blank(), legend.title = element_blank(),
+                             legend.position = c(0.5, 0.5), legend.direction = "horizontal",
+                             legend.text = element_text(size=20), legend.key.size = unit(1.5, 'cm'),
+                             axis.line = element_blank(), axis.text = element_blank(), axis.ticks = element_blank(),
+                             panel.grid.major = element_blank(),
+                             panel.grid.minor = element_blank(),
+                             panel.border = element_blank(),
+                             panel.background = element_blank())) 
+  
+  plots2 <- c(plots, list(legend))
+  
+  pdf(file=paste0("_figures/Uncertainty_SDM_allSpecies_", Taxon_name, ".pdf"), height = 10, width = 10)
+  do.call(grid.arrange, plots2)
+  dev.off()
+}
 
 # #- - - - - - - - - - - - - - - - - - - - - -
 # ## Species richness (current) ####
@@ -639,33 +700,39 @@ dev.off()
 #- - - - - - - - - - - - - - - - - - - - - -
 
 species_stack <- terra::rast(paste0("_results/_Maps/SDM_stack_binary_", Taxon_name, ".tif"))
-species_stack <- terra::as.data.frame(species_stack, xy = TRUE)
+#species_stack <- terra::as.data.frame(species_stack, xy = TRUE)
 
 occ_points <- read_csv(file=paste0("_intermediates/Occurrence_rasterized_1km_", Taxon_name, ".csv"))
 occ_points <- occ_points %>% pivot_longer(cols = all_of(speciesSub), values_to = "occ")
 
+extent_tif <- terra::rasterize(terra::vect(extent_df, geom = c("x", "y")), species_stack)
+
+# Optionally, mask the cropped_layer to only keep values where layer1 == 1
+species_stack <- mask(species_stack, extent_tif)
+species_df <- terra::as.data.frame(species_stack, xy=TRUE)
+
 # map binary species distributions
-plots <- lapply(3:(ncol(species_stack)-1), function(s) {try({
+plots <- lapply(3:(ncol(species_df)-1), function(s) {try({
   print(s-2)
-  temp_data <- extent_df %>% inner_join(species_stack[!is.na(species_stack[,s]),])
   temp_occ <- occ_points %>% 
-    filter(name == names(species_stack)[s]) %>% 
+    filter(name == colnames(species_df)[s]) %>% 
     dplyr::select(!(starts_with(c("PC", "Species"))))
   ggplot()+
     geom_map(data = world.inp, map = world.inp, aes(map_id = region), fill = "white", color = "grey80") +
     coord_cartesian(xlim = c(extent_portugal[1], extent_portugal[2]),
                     ylim = c(extent_portugal[3], extent_portugal[4]))+
     
-    geom_tile(data=temp_data, 
-              aes(x=x, y=y, fill=as.factor(temp_data[,s])))+
+    geom_tile(data=species_df, 
+              aes(x=x, y=y, fill=as.factor(species_df[,s])))+
     geom_point(data=temp_occ, 
-               aes(x=x, y=y, color=as.factor(occ)), cex = 0.028, shape = 19)+
+               aes(x=x, y=y, color=as.factor(occ)), cex = 5, shape = 19)+
     geom_text(aes(x = -7.65, y = 42.2, label = "Spain"), size = 10, color = "grey60")+
     geom_text(aes(x = -8.05, y = 40.55, label = "Portugal"), size = 10, color = "grey60")+
-    ggtitle(colnames(species_stack)[s])+
+    ggtitle(colnames(species_df)[s])+
     scale_fill_manual(values=c("1"="forestgreen", "0"="grey90","NA"="white"))+
     scale_color_manual(values=c("1"="black", "0"="grey60"))+
     theme_bw()+
+    ggtitle(colnames(species_df)[s])+
     guides(fill = guide_legend(# title.hjust = 1, # adjust title if needed
       label.position = "bottom",
       label.hjust = 0.5))+
