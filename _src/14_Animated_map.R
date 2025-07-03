@@ -13,9 +13,12 @@ library(gganimate)
 library(viridis)
 library(gifski)
 
-for(Taxon_name in c("Crassiclitellata", "Nematodes", "Fungi", "Protists", "Eukaryotes", "Bacteria")){
+for(Taxon_name in c("Eukaryotes", "Bacteria")){ #"Crassiclitellata", "Nematodes", "Fungi", "Protists", 
   
   print(Taxon_name)
+   
+  # Load the raster stack
+  species_stack <- terra::rast(paste0("_results/_Maps/SDM_stack_binary_", Taxon_name, ".tif"))
   
   # load number of occurrences per species and focal species names
   species100 <- read.csv(file=paste0("_intermediates/SDM_", Taxon_name, ".csv"))
@@ -28,27 +31,25 @@ for(Taxon_name in c("Crassiclitellata", "Nematodes", "Fungi", "Protists", "Eukar
     species10 <- read.csv(file=paste0("_intermediates/ESM_", Taxon_name, ".csv")) %>% pull(species)
     speciesSub <- species10
   }
-  #if(Taxon_name == "Fungi") species10 <- species10[species10 != "F02025"]
+  if(Taxon_name == "Fungi") species10 <- species10[species10 != "F02025"]
   
   try(if(!is.vector(species10)) species10 <- species10$species)
   try(if(!is.vector(species100)) species100 <- species100$species)
   
-  try(species10 <- sort(species10))
-  try(species100 <- sort(species100))
+  try(species10 <- sort(species10[species10 %in% names(species_stack)]))
+  try(species100 <- sort(species100[species100 %in% names(species_stack)]))
   #speciesSub
-  
-  # Load the raster stack
-  species_stack <- terra::rast(paste0("_results/_Maps/SDM_stack_binary_", Taxon_name, ".tif"))
 
   if(Taxon_name == "Fungi"){
     # crop to right extent
-    temp_extent <- terra::rast(paste0("_results/_Maps/SDM_stack_binary_Crassiclitellata.tif"))
+    # use env. grid
+    temp_extent <- terra::rast(paste0("_results/_Maps/SDM_stack_binary_Protists.tif"))
     species_stack <- mask(species_stack, temp_extent)
     rm(temp_extent)
   }
   
   ## ESMs - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
-  if(Taxon_name == "Crassiclitellata"){
+  if(Taxon_name == "Crassiclitellata" | Taxon_name == "Eukaryotes"){
     # filter uncertainty
     extent_10 <- get(load(file=paste0("_results/SDM_Uncertainty_extent_", Taxon_name, "_10.RData"))) #extent_df
     extent_tif <- terra::rasterize(terra::vect(extent_10, geom = c("x", "y")), species_stack)
@@ -82,7 +83,7 @@ for(Taxon_name in c("Crassiclitellata", "Nematodes", "Fungi", "Protists", "Eukar
   # Combine into one dataframe after the loop
   richness_animation_df <- dplyr::bind_rows(cumulative_df_list)
   
-  if(Taxon_name != "Crassiclitellata"){
+  if(Taxon_name != "Crassiclitellata" & Taxon_name != "Eukaryotes"){
     # filter uncertainty
     extent_10 <- get(load(file=paste0("_results/SDM_Uncertainty_extent_", Taxon_name, "_10.RData"))) #extent_df
     richness_animation_df <- left_join(extent_10, richness_animation_df, by = c("x", "y"))
@@ -114,17 +115,17 @@ for(Taxon_name in c("Crassiclitellata", "Nematodes", "Fungi", "Protists", "Eukar
           legend.position = "right")
   
   # Animate
-  anim <- p +
+  anim_esm <- p +
     transition_manual(species_added, cumulative = TRUE) +
     view_follow(fixed_x = TRUE, fixed_y = TRUE) +
     labs(title = paste0("Number of ", Taxon_name," taxa (9<n<100)"),
          subtitle = paste0("Total number of taxa: ", length(species10)),
          fill = "Richness",
          caption = "Current species added: {current_frame}") 
-  #anim
+  #anim_esm
 
   # Render animation
-  animate(anim, fps = 10, width = 800, height = 600, 
+  gganimate::animate(anim_esm, fps = 10, width = 800, height = 600, 
           end_pause = 20,
           renderer = gifski_renderer(paste0("_figures/SpeciesRichness_ESM_", Taxon_name, ".gif")))
   
@@ -155,9 +156,12 @@ for(Taxon_name in c("Crassiclitellata", "Nematodes", "Fungi", "Protists", "Eukar
     # Combine into one dataframe after the loop
     richness_animation_df <- dplyr::bind_rows(cumulative_df_list)
     
-    extent_100 <- get(load(file=paste0("_results/SDM_Uncertainty_extent_", Taxon_name, "_100.RData"))) #extent_df
-    richness_animation_df <- left_join(extent_100, richness_animation_df, by = c("x", "y"))
     
+    if(Taxon_name != "Eukaryotes"){
+      extent_100 <- get(load(file=paste0("_results/SDM_Uncertainty_extent_", Taxon_name, "_100.RData"))) #extent_df
+      richness_animation_df <- left_join(extent_100, richness_animation_df, by = c("x", "y"))
+    }
+  
     # Load world map
     world.inp <- map_data("world")
     
@@ -184,17 +188,17 @@ for(Taxon_name in c("Crassiclitellata", "Nematodes", "Fungi", "Protists", "Eukar
             legend.position = "right")
     
     # Animate
-    anim <- p +
+    anim_sdm <- p +
       transition_manual(species_added, cumulative = TRUE) +
       view_follow(fixed_x = TRUE, fixed_y = TRUE) +
       labs(title = paste0("Number of ", Taxon_name," taxa (n>99)"),
            subtitle = paste0("Total number of taxa: ", length(species100)), 
            fill = "Richness",
            caption = "Current species added: {current_frame}") 
-    #anim
+    #anim_sdm
     
     # Render animation
-    animate(anim, fps = 10, width = 800, height = 600, 
+    gganimate::animate(anim_sdm, fps = 10, width = 800, height = 600, 
             end_pause = 20,
             renderer = gifski_renderer(paste0("_figures/SpeciesRichness_SDM_", Taxon_name, ".gif")))
   }
