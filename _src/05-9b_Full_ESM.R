@@ -72,7 +72,7 @@ for(Taxon_name in c("Bacteria")){ #"Crassiclitellata", "Nematodes", "Fungi", "Pr
             copy.mode = TRUE)
   set.seed(32639)
   
-  if(Taxon_name == "Bacteria") species_table <- species_table[87:277,]
+  if(Taxon_name == "Bacteria") species_table <- species_table[142:277,]
   
   for(spID in species_table$species){
     
@@ -110,7 +110,10 @@ for(Taxon_name in c("Bacteria")){ #"Crassiclitellata", "Nematodes", "Fungi", "Pr
     )
     
     ### thresholds to produce binary maps
-    my.ESM_thresholds <- ecospat.ESM.threshold(my.ESM_EF)
+    tryCatch({
+      my.ESM_thresholds <- ecospat.ESM.threshold(my.ESM_EF)
+    }, error = function(e) {print(e); print("FAILED: Threshold extraction")}
+    )
     
     #- - - - - - - - - - - - - - - - - - - - -
     # ### Evaluation of bivariate and ensemble models based on standard cross-validation
