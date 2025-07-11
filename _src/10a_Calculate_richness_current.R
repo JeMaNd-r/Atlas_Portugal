@@ -69,12 +69,15 @@ for(Taxon_name in c("Crassiclitellata", "Nematodes", "Fungi", "Protists", "Eukar
   for(spID in speciesSub){ try({
     print(spID)
     
-    if(exists("data_thres") & spID %in% unique(data_thres$Species)){ 
+    if(exists("data_thres") & substr(spID, 1,9) %in% unique(data_thres$Species)){ 
       
       #take maximum threshold value of selected threshold metrices
-      temp_thresh <- max(unlist(data_thres[data_thres$Species==substr(spID, 1,9), 
-                                           c("Kappa", "AUC", "SomersD", "TSS", "TSS.th", "MPA0.95", "Boyce.th.max")]), 
+      temp_thresh <- max(unlist(data_thres[data_thres$Species==substr(spID, 1,9),
+                                           c("Kappa", "AUC", "SomersD", "TSS", "TSS.th", "MPA0.95", "Boyce.th.max")]),
                          na.rm=TRUE)* 1000 #max TSS value (from GLM and MAXENT full models)
+      # temp_thresh <- max(unlist(data_thres[data_thres$Species==substr(spID, 1,9),
+      #                                      c("TSS")]),
+      #                    na.rm=TRUE)* 1000 #max TSS value (from GLM and MAXENT full models)
       print(temp_thresh)
       
     } else {
@@ -83,9 +86,12 @@ for(Taxon_name in c("Crassiclitellata", "Nematodes", "Fungi", "Protists", "Eukar
         #                       data_eval[data_eval$Species==substr(spID, 1,9), "MaxTSS"]))* 1000
         
         #take maximum threshold value of selected threshold metrices
-        temp_thresh <- max(unlist(data_thres_sdm[data_thres_sdm$species==substr(spID, 1,9), 
-                                                 c("KAPPA", "ROC", "TSS", "MPA", "BOYCE")]), 
+        temp_thresh <- max(unlist(data_thres_sdm[data_thres_sdm$species==substr(spID, 1,9),
+                                                 c("KAPPA", "ROC", "TSS", "MPA", "BOYCE")]),
                            na.rm=TRUE) #max TSS value (from GLM and MAXENT full models)
+        # temp_thresh <- max(unlist(data_thres_sdm[data_thres_sdm$species==substr(spID, 1,9), 
+        #                                          c("TSS")]), 
+        #                    na.rm=TRUE) #max TSS value (from GLM and MAXENT full models)
         print(temp_thresh)
   
       } else {
