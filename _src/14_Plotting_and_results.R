@@ -661,39 +661,57 @@ if(!(Taxon_name %in% c("Fungi", "Bacteria", "Protists", "Eukaryotes"))){
   dev.off()
 }
 
-# #- - - - - - - - - - - - - - - - - - - - - -
-# ## Species richness (current) ####
-# #- - - - - - - - - - - - - - - - - - - - - -
-# 
-# species_stack <- terra::rast(paste0("_results/_Maps/SDM_stack_binary_", Taxon_name, ".tif")) 
-# species_stack <- terra::as.data.frame(species_stack, xy = TRUE)
-# 
-# summary(species_stack$Richness)
-# sd(species_stack$Richness)
-# 
-# # species richness
-# ggplot()+
-#   geom_map(data = world.inp, map = world.inp, aes(map_id = region), fill = "grey80") +
-#   coord_cartesian(xlim = c(extent_portugal[1], extent_portugal[2]),
-#                   ylim = c(extent_portugal[3], extent_portugal[4]))+
-#   
-#   geom_tile(data=extent_df %>% inner_join(species_stack %>% filter(Richness>0), by=c("x","y")), 
-#             aes(x=x, y=y, fill=Richness))+
-#   ggtitle("Species richness (number of species)")+
-#   scale_fill_viridis_c()+
-#   geom_tile(data=extent_df %>% inner_join(species_stack %>% filter(Richness==0), by=c("x","y")), aes(x=x, y=y), fill="grey60")+
-#   theme_bw()+
-#   theme(axis.title = element_blank(), legend.title = element_blank(),
-#         legend.position = "right",legend.direction = "vertical",
-#         axis.line = element_blank(), axis.text = element_blank(), axis.ticks = element_blank(),
-#         legend.text = element_text(size=30), legend.key.size = unit(1, 'cm'),
-#         panel.grid.major = element_blank(),
-#         panel.grid.minor = element_blank(),
-#         panel.border = element_blank(),
-#         panel.background = element_blank())
-# ggsave(file=paste0("_figures/SpeciesRichness_", Taxon_name, ".pdf"), 
-#        last_plot(),
-#        height = 5, width = 8)
+#- - - - - - - - - - - - - - - - - - - - - -
+## Species richness (current) ####
+#- - - - - - - - - - - - - - - - - - - - - -
+
+for(Taxon_name in c("Crassiclitellata", "Nematodes", "Fungi", "Protists", "Eukaryotes", "Bacteria")){
+  
+  print(Taxon_name)
+  # load uncertainty extent for all maps
+  try(extent_10 <- get(load(file=paste0("_results/SDM_Uncertainty_extent_", Taxon_name, "_10.RData")))) #extent_df
+  try(extent_100 <- get(load(file=paste0("_results/SDM_Uncertainty_extent_", Taxon_name, "_100.RData")))) #extent_df
+  
+  if(exists("extent_10") & exists("extent_100")){
+    extent_df <- extent_10 %>% inner_join(extent_100)
+  } else{
+    if(exists("extent_10")) extent_df <- extent_10
+    if(exists("extent_100")) extent_df <- extent_100
+  }
+  species_stack <- terra::rast(paste0("_results/_Maps/SDM_stack_binary_", Taxon_name, ".tif"))
+  species_stack <- terra::as.data.frame(species_stack, xy = TRUE)
+  
+  species_stack <- species_stack %>% mutate(x = round(x, 5), y = round(y,5))
+  extent_df <- extent_df %>% mutate(x = round(x, 5), y = round(y,5))
+  
+  summary(species_stack$Richness)
+  sd(species_stack$Richness)
+  
+  # species richness
+  ggplot()+
+    geom_map(data = world.inp, map = world.inp, aes(map_id = region), fill = "grey80") +
+    coord_cartesian(xlim = c(extent_portugal[1], extent_portugal[2]),
+                    ylim = c(extent_portugal[3], extent_portugal[4]))+
+  
+    geom_tile(data=extent_df %>% left_join(species_stack %>% filter(Richness>0), by=c("x","y")),
+              aes(x=x, y=y, fill=Richness))+
+    ggtitle(paste0("Taxon richness (number of taxa) - ", Taxon_name))+
+    labs(subtitle = paste0("Total number of modelled taxa: ", length(names(species_stack))-3))+
+    scale_fill_viridis_c()+
+    #geom_tile(data=extent_df %>% left_join(species_stack %>% filter(Richness==0), by=c("x","y")), aes(x=x, y=y), fill="grey60")+
+    theme_bw()+
+    theme(axis.title = element_blank(), legend.title = element_blank(),
+          legend.position = "right",legend.direction = "vertical",
+          axis.line = element_blank(), axis.text = element_blank(), axis.ticks = element_blank(),
+          legend.text = element_text(size=30), legend.key.size = unit(1, 'cm'),
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          panel.border = element_blank(),
+          panel.background = element_blank())
+  ggsave(file=paste0("_figures/SpeciesRichness_all_", Taxon_name, ".pdf"),
+         last_plot(),
+         height = 5, width = 8)
+}
 
 #- - - - - - - - - - - - - - - - - - - - - -
 ## Species distributions (current) ####
