@@ -13,7 +13,7 @@ library(gganimate)
 library(viridis)
 library(gifski)
 
-for(Taxon_name in c("Eukaryotes")){ #"Crassiclitellata", "Nematodes", "Fungi", "Protists", , "Bacteria"
+for(Taxon_name in c("Crassiclitellata", "Nematodes", "Fungi", "Protists", "Eukaryotes", "Bacteria")){ #
   
   print(Taxon_name)
    

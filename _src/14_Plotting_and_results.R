@@ -64,7 +64,7 @@ df_overview <- data.frame(Taxon = "Taxon",
            Plot_uncertain = TRUE,
            Plot_predict = TRUE)[0,]
 
-for(temp_taxon in c("Earthworms", "EarthGenus", "Crassiclitellata", "Nematodes", "NemaGenus", "Fungi", "Bacteria", "Eukaryotes", "Protists")){
+for(temp_taxon in c("Crassiclitellata", "Nematodes", "Fungi", "Bacteria", "Eukaryotes", "Protists")){ #"Earthworms", "EarthGenus", "NemaGenus", 
   print(temp_taxon)
   temp_overview <- data.frame(test=1)
   
@@ -125,6 +125,42 @@ for(temp_taxon in c("Earthworms", "EarthGenus", "Crassiclitellata", "Nematodes",
 
 df_overview
 
+
+# number of taxa passing model evaluation threshold
+thresholds_auc <- c(0.7, 0.6, 0.5) #values <0.5 indicate performance worse than random (Elith et al. 2006), ESMs only include AUC>0.5 in ensemble (Breiner et al. 2015)
+
+df_overview[paste0(rep(c("No_taxa10_AUC", "No_taxa100_AUC"), each=length(thresholds_auc)), rep(thresholds_auc, 2))] <- NA
+
+
+for(temp_taxon in c("Crassiclitellata", "Nematodes", "Fungi", "Bacteria", "Eukaryotes", "Protists")){ #"Earthworms", "EarthGenus", "NemaGenus", 
+  print(temp_taxon)
+  
+  # number of taxa
+  try({
+    species100 <- read.csv(file=paste0("_intermediates/SDM_", temp_taxon, ".csv"))
+    if(nrow(species100) != 0){
+      species10 <- read.csv(file=paste0("_intermediates/ESM_", temp_taxon, ".csv"))
+      speciesSub <- species100 %>% 
+        pull(species) %>%
+        c(species10 %>% pull(species))
+    }else{
+      species10 <- read.csv(file=paste0("_intermediates/ESM_", temp_taxon, ".csv"))
+      speciesSub <- species10 %>% pull(species)
+    }
+    })
+  
+  if(file.exists(paste0("_results/Model_evaluation_", Taxon_name, ".csv"))){
+    mod_eval <- read_csv(paste0("_results/Model_evaluation_", temp_taxon, ".csv"))
+    for(thresh_auc in thresholds_auc){
+      # taxa that pass evaluation threshold of AUC>thresh_auc
+      df_overview[df_overview$Taxon==temp_taxon,paste0("No_taxa10_AUC", thresh_auc)] <- mod_eval %>% filter(Species %in% species10$species) %>% filter(AUC>=thresh_auc) %>% count() %>% pull(n)
+      df_overview[df_overview$Taxon==temp_taxon,paste0("No_taxa100_AUC", thresh_auc)] <- mod_eval %>% filter(Species %in% species100$species) %>% filter(AUC>=thresh_auc) %>% count() %>% pull(n)
+        
+    }
+    rm(mod_eval)
+  }
+}
+df_overview
 
 #- - - - - - - - - - - - - - - - - - - - -
 Taxon_name <- "Protists"
@@ -712,6 +748,92 @@ for(Taxon_name in c("Crassiclitellata", "Nematodes", "Fungi", "Protists", "Eukar
          last_plot(),
          height = 5, width = 8)
 }
+
+
+# individually for SDM and ESM
+for(Taxon_name in c("Crassiclitellata", "Nematodes", "Fungi", "Protists", "Eukaryotes", "Bacteria")){try({
+  species100 <- read.csv(file=paste0("_intermediates/SDM_", Taxon_name, ".csv"))
+  
+  ## SDMs
+  extent_100 <- get(load(file=paste0("_results/SDM_Uncertainty_extent_", Taxon_name, "_100.RData"))) #extent_df
+  
+  species_stack <- terra::rast(paste0("_results/_Maps/SDM_stack_binary_", Taxon_name, ".tif"))
+  species_stack <- terra::as.data.frame(species_stack, xy = TRUE)
+  
+  species_stack <- species_stack %>% mutate(x = round(x, 5), y = round(y,5))
+  extent_df <- extent_df %>% mutate(x = round(x, 5), y = round(y,5))
+  
+  species_stack <- species_stack %>% dplyr::select(x, y, any_of(pull(species100)), Richness)
+  
+  # species richness
+  ggplot()+
+    geom_map(data = world.inp, map = world.inp, aes(map_id = region), fill = "grey80") +
+    coord_cartesian(xlim = c(extent_portugal[1], extent_portugal[2]),
+                    ylim = c(extent_portugal[3], extent_portugal[4]))+
+    
+    geom_tile(data=extent_df %>% left_join(species_stack %>% filter(Richness>0), by=c("x","y")),
+              aes(x=x, y=y, fill=Richness))+
+    ggtitle(paste0("Taxon richness (number of taxa) - ", Taxon_name))+
+    labs(subtitle = paste0("Total number of modelled taxa: ", length(names(species_stack))-3))+
+    scale_fill_viridis_c()+
+    #geom_tile(data=extent_df %>% left_join(species_stack %>% filter(Richness==0), by=c("x","y")), aes(x=x, y=y), fill="grey60")+
+    theme_bw()+
+    theme(axis.title = element_blank(), legend.title = element_blank(),
+          legend.position = "right",legend.direction = "vertical",
+          axis.line = element_blank(), axis.text = element_blank(), axis.ticks = element_blank(),
+          legend.text = element_text(size=30), legend.key.size = unit(1, 'cm'),
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          panel.border = element_blank(),
+          panel.background = element_blank())
+  ggsave(file=paste0("_figures/SpeciesRichness_SDM_", Taxon_name, ".pdf"),
+         last_plot(),
+         height = 5, width = 8)
+  
+})}
+
+for(Taxon_name in c("Crassiclitellata", "Nematodes", "Fungi", "Protists", "Eukaryotes", "Bacteria")){try({
+  species10 <- read.csv(file=paste0("_intermediates/ESM_", Taxon_name, ".csv"))
+  
+  ## ESMs
+  extent_10 <- get(load(file=paste0("_results/SDM_Uncertainty_extent_", Taxon_name, "_10.RData"))) #extent_df
+  
+  species_stack <- terra::rast(paste0("_results/_Maps/SDM_stack_binary_", Taxon_name, ".tif"))
+  species_stack <- terra::as.data.frame(species_stack, xy = TRUE)
+  
+  species_stack <- species_stack %>% dplyr::select(x, y, any_of(pull(species10)), Richness)
+  
+  species_stack <- species_stack %>% mutate(x = round(x, 5), y = round(y,5))
+  extent_df <- extent_df %>% mutate(x = round(x, 5), y = round(y,5))
+  
+  summary(species_stack$Richness)
+  sd(species_stack$Richness)
+  
+  # species richness
+  ggplot()+
+    geom_map(data = world.inp, map = world.inp, aes(map_id = region), fill = "grey80") +
+    coord_cartesian(xlim = c(extent_portugal[1], extent_portugal[2]),
+                    ylim = c(extent_portugal[3], extent_portugal[4]))+
+    
+    geom_tile(data=extent_df %>% left_join(species_stack %>% filter(Richness>0), by=c("x","y")),
+              aes(x=x, y=y, fill=Richness))+
+    ggtitle(paste0("Taxon richness (number of taxa) - ", Taxon_name))+
+    labs(subtitle = paste0("Total number of modelled taxa: ", length(names(species_stack))-3))+
+    scale_fill_viridis_c()+
+    #geom_tile(data=extent_df %>% left_join(species_stack %>% filter(Richness==0), by=c("x","y")), aes(x=x, y=y), fill="grey60")+
+    theme_bw()+
+    theme(axis.title = element_blank(), legend.title = element_blank(),
+          legend.position = "right",legend.direction = "vertical",
+          axis.line = element_blank(), axis.text = element_blank(), axis.ticks = element_blank(),
+          legend.text = element_text(size=30), legend.key.size = unit(1, 'cm'),
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          panel.border = element_blank(),
+          panel.background = element_blank())
+  ggsave(file=paste0("_figures/SpeciesRichness_ESM_", Taxon_name, ".pdf"),
+         last_plot(),
+         height = 5, width = 8)
+})}
 
 #- - - - - - - - - - - - - - - - - - - - - -
 ## Species distributions (current) ####

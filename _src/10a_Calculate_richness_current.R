@@ -10,7 +10,7 @@ gc()
 library(tidyverse)
 library(raster)
 
-for(Taxon_name in c("Crassiclitellata", "Nematodes", "Fungi", "Protists", "Eukaryotes")){ #, "Bacteria", 
+for(Taxon_name in c("Crassiclitellata", "Nematodes", "Fungi", "Protists", "Eukaryotes", "Bacteria")){ #, 
     
   # load number of occurrences per species and focal species names
   speciesSub <- read.csv(file=paste0("_intermediates/SDM_", Taxon_name, ".csv"))
