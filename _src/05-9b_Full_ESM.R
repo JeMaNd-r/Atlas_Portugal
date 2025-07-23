@@ -49,7 +49,7 @@ for(Taxon_name in c("Bacteria")){ #"Crassiclitellata", "Nematodes", "Fungi", "Pr
     
     dir.create(paste0("_results/", Taxon_name, "/SDMs"))
     dir.create(paste0("_results/", Taxon_name, "/Uncertainty"))
-    dir.create(paste0("_results/", Taxon_name, "/Projection"))
+    dir.create(paste0("_results/", Taxon_name, "/Ensembles"))
   }
   
   # check if MAXENT working
@@ -72,9 +72,9 @@ for(Taxon_name in c("Bacteria")){ #"Crassiclitellata", "Nematodes", "Fungi", "Pr
             copy.mode = TRUE)
   set.seed(32639)
   
-  if(Taxon_name == "Bacteria") species_table <- species_table[142:277,]
+  #if(Taxon_name == "Bacteria") species_table <- species_table[278:287,]
   
-  for(spID in species_table$species){
+  for(spID in species_table$species){try({ #
     
     # save history
     #sink(paste0("./SDMs/ESM_biomod_", spID, ".txt"))
@@ -110,10 +110,9 @@ for(Taxon_name in c("Bacteria")){ #"Crassiclitellata", "Nematodes", "Fungi", "Pr
     )
     
     ### thresholds to produce binary maps
-    tryCatch({
+    try({
       my.ESM_thresholds <- ecospat.ESM.threshold(my.ESM_EF)
-    }, error = function(e) {print(e); print("FAILED: Threshold extraction")}
-    )
+    })
     
     #- - - - - - - - - - - - - - - - - - - - -
     # ### Evaluation of bivariate and ensemble models based on standard cross-validation
@@ -121,10 +120,12 @@ for(Taxon_name in c("Bacteria")){ #"Crassiclitellata", "Nematodes", "Fungi", "Pr
     # my.ESM_thresholds
     
     ### Evaluation of the ensemble models based on the pooling procedure 
-    my.ESM_evaluations <- ecospat.ESM.EnsembleEvaluation(ESM.modeling.output = my.ESM,
+    try({
+      my.ESM_evaluations <- ecospat.ESM.EnsembleEvaluation(ESM.modeling.output = my.ESM,
                                                          ESM.EnsembleModeling.output = my.ESM_EF,
                                                          metrics = c("AUC","MaxTSS"),
                                                          EachSmallModels = FALSE)
+    })
     #my.ESM_evaluations$ESM.evaluations
     
     #- - - - - - - - - - - - - - - - - - - - -
@@ -148,7 +149,7 @@ for(Taxon_name in c("Bacteria")){ #"Crassiclitellata", "Nematodes", "Fungi", "Pr
     
     # save prediction in different folder
     tryCatch({
-      terra::writeRaster(temp_prediction, file=paste0("./Projection/", spID, ".tif"), overwrite = TRUE)
+      terra::writeRaster(temp_prediction, file=paste0("./Ensembles/", spID, ".tif"), overwrite = TRUE)
     }, error = function(e) {print(e); print("FAILED: Save projection")}
     )
     
@@ -214,9 +215,9 @@ for(Taxon_name in c("Bacteria")){ #"Crassiclitellata", "Nematodes", "Fungi", "Pr
     
     gc()
     print("SUCCESSFUL")
-    savehistory(file = paste0("./SDMs/.Rhistory_ESM_biomod_", spID))
+    #savehistory(file = paste0("./SDMs/.Rhistory_ESM_biomod_", spID))
     
-  }
+  })}
   
   # remove maxent.jar file from folder
   file.remove(paste0(input_dir, "/_results/", Taxon_name, "/maxent.jar"))

@@ -11,7 +11,7 @@ library(here)
 
 library(raster)
 
-for(Taxon_name in c("Crassiclitellata", "Nematodes", "Fungi", "Protists", "Eukaryotes")){ #, "Bacteria", 
+for(Taxon_name in c("Crassiclitellata", "Nematodes", "Fungi", "Protists", "Eukaryotes", "Bacteria")){ #, 
     
   print(Taxon_name)
   
@@ -46,6 +46,7 @@ for(Taxon_name in c("Crassiclitellata", "Nematodes", "Fungi", "Protists", "Eukar
     
     # list all projections
     uncertain_rast <- paste0("_results/", Taxon_name, "/Uncertainty/CV_", get(paste0("species", i)),".tif")
+    uncertain_rast <- uncertain_rast[uncertain_rast %in% list.files(paste0("_results/", Taxon_name, "/Uncertainty"), "CV_", full.names = TRUE)]
     
     # load into list
     uncertain_rast <- terra::rast(uncertain_rast)

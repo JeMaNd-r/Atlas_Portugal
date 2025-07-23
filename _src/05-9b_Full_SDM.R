@@ -11,7 +11,6 @@ for(Taxon_name in c("Crassiclitellata", "Nematodes", "Fungi", "Protists", "Eukar
   print(Taxon_name)
   
   setwd("D:/EIE_Macroecology/_students/Romy/Atlas_Portugal")
-  Taxon_name <- "Nematodes"
   species_csv <- paste0("SDM_", Taxon_name, ".csv") 
   output_dir <- paste0(getwd(), "/_results")
   input_dir <- getwd()

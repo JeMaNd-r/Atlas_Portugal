@@ -16,7 +16,7 @@ library(dplyr)
 library(readr)
 library(terra)
 
-for(Taxon_name in c("Crassiclitellata", "Nematodes", "Fungi", "Protists", "Eukaryotes")){ #, "Bacteria", 
+for(Taxon_name in c("Crassiclitellata", "Nematodes", "Fungi", "Protists", "Eukaryotes", "Bacteria")){ #, 
 
   print(Taxon_name)
   
@@ -29,7 +29,7 @@ for(Taxon_name in c("Crassiclitellata", "Nematodes", "Fungi", "Protists", "Eukar
     dir.create(paste0("_results/", Taxon_name, "/OLD_SingleProjections"))
   }
 
-  for(spID in speciesSub){
+  for(spID in speciesSub){try({
  
     print(spID)
     
@@ -76,8 +76,34 @@ for(Taxon_name in c("Crassiclitellata", "Nematodes", "Fungi", "Protists", "Eukar
     # save CV and projection
     terra::writeRaster(weighted_mean, paste0("_results/", Taxon_name, "/Ensembles/", spID, ".tif"))
     terra::writeRaster(cv_unweighted, paste0("_results/", Taxon_name, "/Uncertainty/CV_", spID, ".tif"), overwrite = TRUE)
-}}
+})}}
 
+
+
+# #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# ## Copy SDM ensembles to Ensemble folder (delete former Projection folder) ####
+# #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# 
+# for(Taxon_name in c("Crassiclitellata", "Nematodes", "Fungi", "Protists", "Eukaryotes", "Bacteria")){ #
+# 
+#   print(Taxon_name)
+#   
+#   # load species names
+#   speciesSub <- read_csv(file=paste0("_intermediates/SDM_", Taxon_name, ".csv")) %>% pull(species)
+#   
+#   for(spID in speciesSub){try({
+#     
+#     print(spID)
+#     
+#     # next species if copy of projection files already exist (and therefore CV is overwritten)
+#     if(file.exists(paste0("_results/", Taxon_name, "/Ensembles/", spID, ".tif"))) next
+#     
+#     temp_raster <- terra::rast(paste0("_results/", Taxon_name, "/Projection/", spID, ".tif"))
+#     
+#     #save
+#     terra::writeRaster(temp_raster, paste0("_results/", Taxon_name, "/Ensembles/", spID, ".tif"))
+#   })}
+# }
 # 
 # #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # ## Re-do maps for all (used wrong weights...) ####
