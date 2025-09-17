@@ -323,6 +323,28 @@ ggsave(paste0("_figures/OccurrencesGridded_", Taxon_name, "_perSpecies.pdf"),
 rm(occ_points_species)
 
 #- - - - - - - - - - - - - - - - - - - - -
+### BIOMOD Occurrences per species (all taxa) ####
+#- - - - - - - - - - - - - - - - - - - - -
+
+# define names of taxonomic groups
+taxaNames <- c("Crassiclitellata", "Fungi", "Nematodes", "Protists", "Eukaryotes", "Bacteria") #
+taxaNames
+
+# Calculate individuals species' occurrence based on BIOMOD input
+occ_list <- lapply(taxaNames, function(tax){
+  read_csv(file=paste0("_results/Occurrence_rasterized_1km_BIOMOD_", tax, ".csv")) %>%
+    mutate(taxon = tax)})
+occ_list <- do.call(rbind, occ_list)
+
+taxa_list <- lapply(taxaNames, function(tax){
+  read_csv(file=paste0("_intermediates/SDM_", tax, ".csv")) %>%
+    mutate(taxon = tax, records = 100) %>%
+    full_join(read_csv(file=paste0("_intermediates/ESM_", tax, ".csv")) %>%
+                mutate(taxon = tax, records = 10))})
+taxa_list <- do.call(rbind, taxa_list)
+taxa_list %>% count(records, taxon)
+
+#- - - - - - - - - - - - - - - - - - - - -
 ## Variable importance (MaxEnt) ####
 #- - - - - - - - - - - - - - - - - - - - -
 
@@ -749,6 +771,19 @@ for(Taxon_name in c("Crassiclitellata", "Nematodes", "Fungi", "Protists", "Eukar
          height = 5, width = 8)
 }
 
+# stack all groups
+stack_all <- terra::rast()
+for(Taxon_name in c("Crassiclitellata", "Nematodes", "Fungi", "Protists", "Eukaryotes", "Bacteria")){try({
+  species_stack <- terra::rast(paste0("_results/_Maps/SDM_stack_binary_", Taxon_name, ".tif"))
+  
+  temp_richness <- species_stack$Richness
+  names(temp_richness) <- Taxon_name
+  stack_all <- c(stack_all, temp_richness)
+})}
+stack_all
+
+stack_all <- terra::mask(stack_all, env_por[[1]])
+terra::writeRaster(stack_all, "_results/_Maps/SDM_stack_richness_allTaxa.tif", overwrite=TRUE)
 
 # individually for SDM and ESM
 for(Taxon_name in c("Crassiclitellata", "Nematodes", "Fungi", "Protists", "Eukaryotes", "Bacteria")){try({
