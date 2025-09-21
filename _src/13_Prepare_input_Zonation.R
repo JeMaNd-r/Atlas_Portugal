@@ -22,8 +22,8 @@ taxaNames
 #- - - - - - - - - - - - - - - - - - - - - -
 
 dir.create(paste0("_results/Zonation"))
-#dir.create(paste0("_results/Zonation/NoData"))
-for(i in taxaNames) dir.create(paste0("_results/Zonation/", i))
+dir.create(paste0("_results/Zonation/data"))
+for(i in taxaNames) dir.create(paste0("_results/Zonation/data/", i))
 
 names_list <- list()
 for(Taxon_name in taxaNames){
@@ -57,7 +57,7 @@ for(Taxon_name in taxaNames){
     
     projection_rast[projection_rast<500 & !is.na(projection_rast)] <- 0
     
-    terra::writeRaster(projection_rast, paste0("_results/Zonation/", Taxon_name, "/", i, "_", temp_species, ".tif"), overwrite = TRUE)
+    terra::writeRaster(projection_rast, paste0("_results/Zonation/data/", Taxon_name, "/", i, "_", temp_species, ".tif"), overwrite = TRUE)
     
     # number of cells with probability >500
     n_probability <- terra::ncell(projection_rast) - unlist(lapply(terra::cells(projection_rast, 0), length))
@@ -82,7 +82,7 @@ for(Taxon_name in taxaNames){
     
     # invert (high uncertainty -> low certainty)
     certainty_rast <- 1 - uncertainty_rast
-    terra::writeRaster(certainty_rast, paste0("_results/Zonation/", Taxon_name, "/", i, "_", temp_species, "_certainty.tif"), overwrite = TRUE)
+    terra::writeRaster(certainty_rast, paste0("_results/Zonation/data/", Taxon_name, "/", i, "_", temp_species, "_certainty.tif"), overwrite = TRUE)
   })
   }
 }
@@ -93,6 +93,9 @@ colnames(names_list) <- c("Taxon", "ID", "SpeciesID", "No_cells_probability")
 names_list <- as_tibble(names_list)
 names_list
 
+# numerical groups
+names_list <- names_list %>% mutate("wgrp" = as.numeric(as.factor(Taxon)))
+
 write_csv(names_list,  paste0("_results/Zonation/TaxaNames_legend.csv"))
 
 # define weight and group for each layer
@@ -100,31 +103,67 @@ names_list <- read_csv(paste0("_results/Zonation/TaxaNames_legend.csv"))
 write_delim(names_list %>%
               filter(SpeciesID != "Richness") %>%
               mutate("weight" = "1",
-                     "group" = as.numeric(as.factor(Taxon)),
+                     "group" = wgrp,
                      "uncertainty" = paste0("../data/", Taxon, "/", ID, "_certainty.tif"),
                      "filename" = paste0("../data/", Taxon, "/", ID, ".tif")) %>%
-              dplyr::select("weight", "uncertainty", "group","filename"),
+              dplyr::select("weight", "uncertainty", "wgrp","filename", "group"),
             paste0("_results/Zonation/features.txt"))
 
 write_delim(names_list %>%
               filter(SpeciesID != "Richness") %>%
               filter(str_detect(ID, "10_")) %>%
               mutate("weight" = "1",
-                     "group" = as.numeric(as.factor(Taxon)),
+                     "group" = wgrp,
                      "uncertainty" = paste0("../data/", Taxon, "/", ID, "_certainty.tif"),
                      "filename" = paste0("../data/", Taxon, "/", ID, ".tif")) %>%
-              dplyr::select("weight", "uncertainty", "group","filename"),
+              dplyr::select("weight", "uncertainty", "wgrp","filename", "group"),
             paste0("_results/Zonation/features_10.txt"))
 
 write_delim(names_list %>%
               filter(SpeciesID != "Richness") %>%
               filter(str_detect(ID, "100_")) %>%
               mutate("weight" = "1",
-                     "group" = as.numeric(as.factor(Taxon)),
+                     "group" = wgrp,
                      "uncertainty" = paste0("../data/", Taxon, "/", ID, "_certainty.tif"),
                      "filename" = paste0("../data/", Taxon, "/", ID, ".tif")) %>%
-              dplyr::select("weight", "uncertainty", "group","filename"),
+              dplyr::select("weight", "uncertainty", "wgrp","filename", "group"),
             paste0("_results/Zonation/features_100.txt"))
+
+# specify group weights to weight all taxa equally across groups
+names_list <- read_csv(paste0("_results/Zonation/TaxaNames_legend.csv"))
+
+f_group_weights <- function(x){
+  x$max <- max(x$n)
+  x$weight <- x$max / x$n
+  x <- x %>%
+    dplyr::select(wgrp, weight)
+}
+
+group_weights <- f_group_weights(names_list %>% 
+                                   group_by(wgrp) %>% 
+                                   count() )
+
+group_weights_10 <- f_group_weights(names_list %>% 
+          filter(str_detect(ID, "10_")) %>% 
+          group_by(wgrp) %>% count())
+
+group_weights_100 <- f_group_weights(names_list %>% 
+          filter(str_detect(ID, "100_")) %>% 
+          group_by(wgrp) %>% count())
+
+group_weights
+group_weights_10
+group_weights_100
+
+write_delim(group_weights,
+            col_names = FALSE,
+            paste0("_results/Zonation/group_weights.txt"))
+write_delim(group_weights_10,
+            col_names = FALSE,
+            paste0("_results/Zonation/group_weights_10.txt"))
+write_delim(group_weights_100,
+            col_names = FALSE,
+            paste0("_results/Zonation/group_weights_100.txt"))
 
 #- - - - - - - - - - - - - - - - - - - - - -
 ## Prepare protection layers ####
@@ -136,6 +175,10 @@ r$all <- 1
 r <- terra::mask(r, env_por[[1]])
 r <- terra::subset(r, "all")
 rm(env_por)
+
+terra::writeRaster(r, file = "_results/Zonation/Analysis_area.tif",
+                   datatype = "INT1U",
+                   overwrite = TRUE)
 
 ## load all files provided by protectedplanet.net 
 shp0 <- terra::vect("D:/EIE_Macroecology/_students/Romy/_Shapefiles/WDPA_WDOECM_Nov2022_Public_all_shp/WDPA_WDOECM_Nov2022_Public_all_shp_0/WDPA_WDOECM_Nov2022_Public_all_shp-polygons.shp")
@@ -236,8 +279,61 @@ protect_stack <- terra::rast(paste0("_intermediates/Protection_POR_coverage.tif"
 # save layers for Zonation
 for(ly in names(protect_stack)[names(protect_stack) %in% c("PA", "IUCN_PA")]){
   protect_stack[[ly]]
-  terra::writeRaster(protect_stack[[ly]], 
+  terra::writeRaster(protect_stack[[ly]]+1, 
                      filename = paste0("_results/Zonation/POR_", 
+                                       ly, 
+                                       "_+1.tif"), 
+                     datatype = "INT1U",  # 8-bit unsigned integer
+                     overwrite = TRUE)
+  print(paste0(ly, " ready."))
+}
+
+# calculate layer with distance to PA to rank areas closer to PA higher
+protect_layers <- list.files("_results/Zonation/", pattern = "POR_", full.names = TRUE)
+protect_layers <- protect_layers[!(str_detect(protect_layers, "distance"))]
+protect_layers <- terra::rast(protect_layers)
+
+protect_layers[protect_layers==0,] <- NA #disance is calculated for all NAs
+
+protect_dist_layers <- lapply(1:nlyr(protect_layers), function(lyr){
+  temp_dist <- terra::distance(protect_layers[[lyr]]) #distance given in meters
+  # # rescale 0–1
+  # temp_min <- as.numeric(global(temp_dist, "min", na.rm=TRUE)[1])
+  # temp_max <- as.numeric(global(temp_dist, "max", na.rm=TRUE)[1])
+  # temp_dist[!is.na(temp_dist)] <- (temp_dist[!is.na(temp_dist),] - temp_min) / (temp_max - temp_min)
+  # temp_dist[!is.na(temp_dist)]  <- (1 - temp_dist[!is.na(temp_dist)]) 
+  temp_dist
+})
+
+protect_dist_layers <- do.call(c, protect_dist_layers)
+
+terra::writeRaster(protect_dist_layers, file = "_intermediates/POR_protection_distance.tif", overwrite = TRUE)
+protect_dist_layers <- terra::rast("_intermediates/POR_protection_distance.tif")
+
+# # rescale to categories 
+# max_distance <- max(global(do.call(c,protect_dist_layers), max, na.rm=TRUE))
+# m_dist <- matrix(c(
+#   5000,    max_distance,  1,
+#   4000,  5000,  1,
+#   3000,  4000,  1.2,
+#   2000,  3000,  1.4,
+#   1000,  2000,  1.6,
+#   0.1,  1000,  1.8,
+#   # 0.1, 5000, 1.7,
+#   -0.1, 0.1, 2
+# ), ncol=3, byrow=TRUE)
+# 
+# protect_dist_layers <- lapply(1:nlyr(protect_layers), function(lyr)
+#   classify(protect_dist_layers[[lyr]], m_dist)
+#   )
+# 
+# protect_dist_layers <- do.call(c, protect_dist_layers)
+
+# save distance layers for Zonation
+for(ly in names(protect_dist_layers)){
+  protect_dist_layers[[ly]]
+  terra::writeRaster(protect_dist_layers[[ly]], 
+                     filename = paste0("_results/Zonation/POR_distance_", 
                                        ly, 
                                        ".tif"), 
                      datatype = "INT1U",  # 8-bit unsigned integer
@@ -258,28 +354,211 @@ for(ly in names(protect_stack)[names(protect_stack) %in% c("PA", "IUCN_PA")]){
 #- - - - - - - - - - - - - - - - - - - - - -
 ## Threat layers ####
 
-dir.create(paste0("_results/Zonation/threats"))
+# dir.create(paste0("_results/Zonation/threats"))
 
 degr_drivers <- terra::rast(paste0("../Soil_degradation_drivers/Degradation_POR_binary.tif"))
 
-# save layers for Zonation
-for(ly in names(degr_drivers)){
-  terra::writeRaster(degr_drivers[[ly]], 
-                     filename = paste0("_results/Zonation/threats/POR_", 
-                                       ly, 
-                                       ".tif"))
-  print(paste0(ly, " ready."))
+degr_drivers$erosion <- 1 * degr_drivers$erosion 
+degr_drivers$climvelo <- 3 * degr_drivers$climvelo
+degr_drivers$compaction <- 2 * degr_drivers$compaction
+degr_drivers$invasion <- 2 * degr_drivers$invasion
+degr_drivers$lu_instability <- 1 * degr_drivers$lu_instability
+degr_drivers$salinization <- 2 * degr_drivers$salinization
+
+degr_drivers_sum <- sum(degr_drivers, na.rm = TRUE)
+terra::plot(degr_drivers_sum)
+
+degr_drivers_sum[is.na(degr_drivers_sum)] <- 0
+
+terra::writeRaster(degr_drivers_sum, file = "_results/Zonation/Degradation_sum.tif", overwrite = TRUE)
+terra::writeRaster(degr_drivers_sum * 10, file = "_results/Zonation/Degradation_sumx10.tif", overwrite = TRUE)
+
+degr_drivers_max <- max(degr_drivers, na.rm = TRUE)
+terra::plot(degr_drivers_max)
+degr_drivers_max[is.na(degr_drivers_max)] <- 0
+terra::writeRaster(degr_drivers_max, file = "_results/Zonation/Degradation_max.tif", overwrite = TRUE)
+terra::writeRaster(degr_drivers_max/3, file = "_results/Zonation/Degradation_maxdiv3.tif", overwrite = TRUE)
+
+degr_drivers_subset <- subset(degr_drivers, c("erosion", "compaction", "salinization"))
+degr_drivers_subset_max <- max(degr_drivers_subset, na.rm = TRUE)
+terra::plot(degr_drivers_subset_max)
+degr_drivers_subset_max[is.na(degr_drivers_subset_max)] <- 0
+
+terra::writeRaster(degr_drivers_subset_max, file = "_results/Zonation/Degradation_maxSubset.tif", overwrite = TRUE)
+
+# # save layers for Zonation
+# for(ly in names(degr_drivers)){
+#   terra::writeRaster(degr_drivers[[ly]], 
+#                      filename = paste0("_results/Zonation/threats/POR_", 
+#                                        ly, 
+#                                        ".tif"))
+#   print(paste0(ly, " ready."))
+# }
+# 
+# costs <- data.frame("cost_file" = list.files(paste0("_results/Zonation/threats/"), pattern = "^POR_"))
+# costs <- costs %>%
+#   mutate("weight" = c("3", "2", "1", "2", "1", "2"),
+#          "cost_file" = paste0("data/", cost_file)) %>%
+#   dplyr::select(weight, cost_file)
+# 
+# write_delim(costs,
+#             paste0("_results/Zonation/costs.txt"))
+
+#- - - - - - - - - - - - - - - - - - - - - -
+## Write scripts for Zonation analysis ####
+
+zonation_dir <- "D:/EIE_Macroecology/_students/Romy/SoilBioPrio_Zonation/POR"
+
+approaches <- c("target", "complement", "prevent")
+species_numbers <- c("", "_10", "_100")
+group_weights <- c("", "_grW")
+protected_areas <- c("", "_allPA")
+degradation_weights <- c("_max", "_maxSubset")
+
+zonation_scenarios <- c(
+  apply(expand.grid(
+  approaches[1], species_numbers, group_weights), 1, paste, collapse = ""),
+  apply(expand.grid(
+    approaches[2], species_numbers, group_weights, protected_areas), 1, paste, collapse = ""), #c("", "_dist") = distance of PAs considering for expanding
+  apply(expand.grid(
+    approaches[3], species_numbers, group_weights, protected_areas, degradation_weights), 1, paste, collapse = "")
+)
+zonation_scenarios
+
+# create directories with correct files
+lapply(paste0(zonation_dir, "/", zonation_scenarios), function(x) dir.create(x))
+
+# prepare settings files
+for(zonation_scenario in zonation_scenarios){
+  approach <- na.omit(str_extract(zonation_scenario, approaches))[1]
+  
+  # write settings file
+  sink(paste0(zonation_dir, "/", zonation_scenario, "/settings_", approach,".z5"))
+    if(str_detect(zonation_scenario, "_10")){
+      if(str_detect(zonation_scenario, "_100")){
+        cat(paste0("feature list file = features_100.txt"), "\n")
+        if(str_detect(zonation_scenario, "grW")) cat(paste0("weight groups file = group_weights_100.txt"), "\n")
+      } else {
+        cat(paste0("feature list file = features_10.txt"), "\n")
+        if(str_detect(zonation_scenario, "grW")) cat(paste0("weight groups file = group_weights_10.txt"), "\n")
+      }
+    } else {
+      cat(paste0("feature list file = features.txt"), "\n")
+      if(str_detect(zonation_scenario, "grW")) cat(paste0("weight groups file = group_weights.txt"), "\n")
+    }
+    cat("zero mode = \"all\"", "\n")
+    if(approach != approaches[1]){
+      if(str_detect(zonation_scenario, "allPA")) { 
+         cat("hierarchic mask layer = ../data/POR_PA.tif", "\n")
+      } else {
+        cat("hierarchic mask layer = ../data/POR_IUCN_PA.tif", "\n")
+      }
+    }
+    if(approach == approaches[3]){
+      if(str_detect(zonation_scenario, "maxSubset")){
+        cat("cost layer = ../data/Degradation_maxSubset.tif", "\n")
+      } else {
+        cat("cost layer = ../data/Degradation_max.tif", "\n")
+      }
+    }
+    cat("analysis area mask layer = ../data/Analysis_area.tif", "\n")
+  sink()
+  
+  print(paste0("Successfully wrote ", zonation_dir, "/", zonation_scenario, "/settings_", approach,".z5"))
+}
+sink()
+
+# copy species layers
+file.copy(paste0("_results/Zonation/data"),
+          paste0(zonation_dir), recursive = TRUE)
+# copy analysis file
+file.copy(paste0("_results/Zonation/Analysis_area.tif"),
+          paste0(zonation_dir, "/data/Analysis_area.tif"))
+
+temp_files <- list.files(paste0("_results/Zonation/"), full.names = TRUE)
+temp_files <- temp_files[str_detect(temp_files, "POR_") | str_detect(temp_files, "Degradation_")]
+temp_files
+file.copy(temp_files,
+          paste0(zonation_dir, "/data"))
+
+# copy feature files in correct directories
+for(zonation_scenario in zonation_scenarios){
+
+  if(str_detect(zonation_scenario, "_10")){
+    if(str_detect(zonation_scenario, "_100")){
+      file.copy(paste0("_results/Zonation/features_100.txt"),
+                paste0(zonation_dir, "/", zonation_scenario, "/features_100.txt"))
+      if(str_detect(zonation_scenario, "grW")) 
+        file.copy(paste0("_results/Zonation/group_weights_100.txt"),
+                  paste0(zonation_dir, "/", zonation_scenario, "/group_weights_100.txt"))
+      
+    } else {
+      file.copy(paste0("_results/Zonation/features_10.txt"),
+                paste0(zonation_dir, "/", zonation_scenario, "/features_10.txt"))
+      if(str_detect(zonation_scenario, "grW")) 
+        file.copy(paste0("_results/Zonation/group_weights_10.txt"),
+                  paste0(zonation_dir, "/", zonation_scenario, "/group_weights_10.txt"))
+    }
+    
+  } else {
+    file.copy(paste0("_results/Zonation/features.txt"),
+              paste0(zonation_dir, "/", zonation_scenario, "/features.txt"))
+    if(str_detect(zonation_scenario, "grW")) 
+      file.copy(paste0("_results/Zonation/group_weights.txt"),
+                paste0(zonation_dir, "/", zonation_scenario, "/group_weights.txt"))
+  }
+  
+  print(list.files(paste0(zonation_dir, "/", zonation_scenario)))
+  print(paste0("Successfully copied files to ", zonation_dir, "/", zonation_scenario))
 }
 
-costs <- data.frame("cost_file" = list.files(paste0("_results/Zonation/threats/"), pattern = "^POR_"))
-costs <- costs %>%
-  mutate("weight" = c("3", "2", "1", "2", "1", "2"),
-         "cost_file" = paste0("data/", cost_file)) %>%
-  dplyr::select(weight, cost_file)
+## create script to run all analysis
+# zonation settings tried
+# " -wga " #without group weights and with area analysis
+# "-wWga" #with group weights and with area analysis
+# "-wWgxXa" #with group weights and cost layer and cost prio and area analysis
+# "-wWxXha" #same plus hierarchical mask, and without groups
 
-write_delim(costs,
-            paste0("_results/Zonation/costs.txt"))
+# example call:
+#"C:/Program Files/Zonation5/z5w.exe" --mode=CAZ2 -wWga --area=1 D:/EIE_Macroecology/_students/Romy/SoilBioPrio_Zonation/POR/targeted_groupWeights/settings_targeted.z5 D:/EIE_Macroecology/_students/Romy/SoilBioPrio_Zonation/POR/targeted_groupWeights 
 
+zonation_exe   <- '"C:/Program Files/Zonation5/z5w.exe"'
+zonation_options <- "--mode=CAZ2 -SCENARIO --area=1"
+
+# Output file
+script_output <- file.path(zonation_dir, "/Zonation_script.txt")
+
+sink(script_output)
+
+for (zonation_scenario in zonation_scenarios) {
+  approach <- na.omit(str_extract(zonation_scenario, approaches))[1]
+
+  # construct Zonation call
+  temp_options <- "-w"
+  if(str_detect(zonation_scenario, "_grW")) temp_options <- paste0(temp_options, "W")
+  temp_options <- paste0(temp_options, "g")
+  if(str_detect(zonation_scenario, "prevent")) temp_options <- paste0(temp_options, "xX")
+  if(str_detect(zonation_scenario, "complement")) temp_options <- paste0(temp_options, "h")
+  if(str_detect(zonation_scenario, "prevent")) temp_options <- paste0(temp_options, "h")
+  temp_options <- paste0(temp_options, "a")
+  
+  temp_options <- str_replace(zonation_options, "-SCENARIO", temp_options)
+  
+  cat(":: Scenario: ", zonation_scenario, "\n")
+  cat(
+    paste(
+      zonation_exe,
+      temp_options,
+      file.path(zonation_dir, zonation_scenario, paste0("settings_", approach, ".z5")),
+      file.path(zonation_dir, zonation_scenario)
+    ),
+    "\n\n",     # blank line between scenarios
+    sep = ""
+  )
+}
+
+sink()  # very important to close the sink!
+cat("Commands written to:", script_output, "\n")
 
 
 
