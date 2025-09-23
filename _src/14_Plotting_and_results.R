@@ -11,7 +11,7 @@ gc()
 library(tidyverse)
 library(here)
 
-library(raster)
+library(terra)
 
 library(biomod2) # also to create pseudo-absences
 
@@ -21,12 +21,18 @@ library(ggpubr)
 library(sf)
 library(ggsn) #for scale and north arrow
 
+library(eurostat) # to get NUTS regions
+library(giscoR)  # to get NUTS regions
+
 library(parallel)
 library(doParallel)
 
 # plotting
 library(gridExtra)
 library(colorRamps) #color gradient in Supplementary figure
+
+# NMDS
+library(vegan)
 
 # covariates
 covarsNames <- paste0("PCA_", 1:11)
@@ -44,6 +50,16 @@ g_legend <- function(a.gplot){
   legend <- tmp$grobs[[leg]] 
   legend
 } 
+
+
+# load NUTS II regions of Germany in R as sf
+nuts_sf <- eurostat::get_eurostat_geospatial(nuts_level = "2", year = "2021", crs = "4326", resolution = "01") #crs: "4326" - WGS84, "3035" - ETRS89 / ETRS-LAEA, "3857" - Pseudo-Mercator
+
+# extract Portuguese sf
+por_sf <- nuts_sf[nuts_sf$CNTR_CODE=="PT",]
+por_sf <- por_sf[por_sf$id == "PT11",] #only continental Portugal
+por_sf <- sf::st_crop(por_sf, sf::st_bbox(c(xmin=extent_portugal[1], xmax=extent_portugal[2], ymin=extent_portugal[3], ymax=extent_portugal[4])))
+
 #- - - - - - - - - - - - - - - - - - - - -
 ## Running progress ####
 #- - - - - - - - - - - - - - - - - - - - -
@@ -344,6 +360,84 @@ taxa_list <- lapply(taxaNames, function(tax){
 taxa_list <- do.call(rbind, taxa_list)
 taxa_list %>% count(records, taxon)
 
+# plot all
+p_occ_bm <- ggplot()+
+  geom_map(data = world.inp, map = world.inp, aes(map_id = region), fill = "white", color = "grey80") +
+  geom_sf(data = por_sf)+
+  coord_sf(xlim = c(extent_portugal[1], extent_portugal[2]),
+                  ylim = c(extent_portugal[3], extent_portugal[4]), expand = FALSE)+
+  
+  geom_sf(data=st_as_sf(occ_list,
+                           coords = c("x", "y"),   # columns with coordinates
+                           crs = 4326) %>% #WGS84
+            filter(occ >= 1) %>% dplyr::select(taxon, geometry, occ) %>% unique(),
+             aes(group=taxon),
+             cex=0.5, pch=19, alpha = 0.7, color = "forestgreen")+
+  #scale_color_manual(values = c("1"="forestgreen", "0"="orange"))+
+  facet_wrap(vars(taxon))+
+  
+  # add number of grid cells in which the species is present
+  geom_text(data=occ_list %>% group_by(taxon) %>% summarize("n"=sum(occ)),
+            aes(x=-6.5, y=41, label=paste0("n=", n)), color="black",
+            inherit.aes=FALSE, parse=FALSE, cex=2, hjust=0)+
+  geom_text(data=occ_list %>% group_by(taxon) %>% 
+              filter(occ >= 1) %>%
+              dplyr::select(SpeciesID, taxon) %>% unique() %>% 
+              mutate(occ = 1) %>% summarize("n"=sum(occ)),
+            aes(x=-6.5, y=40.9, label=paste0("taxa=", n)), color="black",
+            inherit.aes=FALSE, parse=FALSE, cex=2, hjust=0)+
+  theme_bw()+
+  theme(axis.title = element_blank(), legend.title = element_blank(),
+        legend.position = "bottom",legend.direction = "horizontal",
+        axis.line = element_blank(), axis.text = element_blank(), axis.ticks = element_blank(),
+        legend.text = element_text(size=10), legend.key.size = unit(1, 'cm'),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_rect(fill="grey80"))
+p_occ_bm
+ggsave(paste0("_figures/OccurrencesBIOMOD_allGroups_perGroup.pdf"),
+       p_occ_bm,
+       height = 12, width = 12)
+
+p_occ_bm_sum <- ggplot()+
+  #geom_map(data = world.inp, map = world.inp, aes(map_id = region), fill = "white", color = "grey80") +
+  geom_sf(data = por_sf)+
+  coord_sf(xlim = c(extent_portugal[1], extent_portugal[2]),
+           ylim = c(extent_portugal[3], extent_portugal[4]), expand = FALSE)+
+  
+  geom_sf(data=sf::st_as_sf(occ_list,
+                            coords = c("x", "y"),   # columns with coordinates
+                            crs = 4326) %>% filter(occ >=1) %>% 
+            dplyr::select(geometry, taxon, occ) %>% unique() %>%
+               group_by(geometry) %>% 
+               summarize(across(occ, sum)),
+             aes(color = occ), 
+             pch=19,  cex = 3)+
+  #scale_color_manual(values = c("1"="forestgreen", "0"="orange"))+
+  scale_color_steps(name = "Number of taxonomic groups",
+                       low = "#d9b3c6",
+                       high = "#800040",
+                    limits= c(0, 5))+
+  # add number of grid cells in which the species is present
+  theme_bw()+
+  theme(axis.title = element_blank(), #legend.title = element_blank(),
+        legend.title.position = "top",
+        legend.position = "inside",legend.direction = "horizontal",
+        legend.position.inside = c(0.84, 0.17),
+        axis.line = element_blank(), axis.text = element_blank(), axis.ticks = element_blank(),
+        legend.text = element_text(size=10), legend.key.size = unit(1, 'cm'),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank()#,
+        #panel.background = element_rect(fill="grey80")
+        )
+p_occ_bm_sum
+ggsave(paste0("_figures/OccurrencesBIOMOD_allGroups_sum.pdf"),
+       p_occ_bm_sum,
+       height = 12, width = 12)
+
+
 #- - - - - - - - - - - - - - - - - - - - -
 ## Variable importance (MaxEnt) ####
 #- - - - - - - - - - - - - - - - - - - - -
@@ -424,75 +518,200 @@ ggplot(var_imp %>%
 
 ggsave(paste0("_figures/VariableImportance_MaxEnt_species_", Taxon_name, ".pdf"), height=11, width=9)
  
-# ## plot maps
-# temp_files <- list.files(paste0("_results/_TopPredictor/", Taxon_name))
-# temp_files <- temp_files[stringr::str_detect(temp_files, "SDM_maxent_[:graph:]*.RData")]
-# 
-# plots <- lapply(c(1:length(temp_files)), function(m) {try({
-#   print(temp_files[m]); print(m)
-#   temp_pred <- get(load(file=paste0("_results/_TopPredictor/",Taxon_name, "/", temp_files[m])))[["prediction"]]
-#   #print(m)
-#   spID <- str_split_fixed(temp_files[m], "_", 4)
-#   spID <- str_split_fixed(spID[,4], "[.]", 2)[,1]
-#   ggplot(data=temp_pred, aes(x=x, y=y, fill=layer))+
-#     geom_tile()+
-#     ggtitle(spID)+
-#     scale_fill_viridis_c(limits = c(0,1))+
-#     theme_bw()+
-#     theme(axis.title = element_blank(), legend.title = element_blank(),
-#           legend.position = "none")
-# })})
-# 
-# lapply(plots, class) # if error, remove that species
-# 
-# pdf(file=paste0("_figures/DistributionMaps_MaxEnt_", Taxon_name, ".pdf"), height = 10, width = 10)
-# #png(file=paste0("_figures/DistributionMaps_MaxEnt_", Taxon_name, ".png"),width=3000, height=3000)
-# do.call(gridExtra::grid.arrange, plots)
-# dev.off()
+
+#- - - - - - - - - - - - - - - - - - - - -
+## Variable importance (MaxEnt, all taxa) ####
+#- - - - - - - - - - - - - - - - - - - - -
+
+## Visualize and get top 10
+var_imp <- lapply(taxaNames, function(x){
+  y <- read_csv(paste0("_results/Variable_importance_MaxEnt_", x, ".csv"))
+  
+  # save top 10 predictors
+  z <- y %>% group_by(Predictor) %>% 
+    summarize(across(maxent, median)) %>%
+    rename(median=maxent) %>%
+    arrange(desc(median)) %>% 
+    top_n(10) %>% # top 10 per taxon group
+    mutate(Taxon = x) %>%
+    left_join(y %>% group_by(Predictor) %>% filter(maxent>0) %>% count(name="No_species>0"),
+              by="Predictor")
+  z
+})
+var_imp <- do.call(rbind, var_imp)
+var_imp
+
+# load predictor table to get classification of variables
+# load the predictor table containing the individual file names
+pred_tab <- readr::read_csv(file=paste0("_data/METADATA_Predictors.csv"))
+
+# transform to long format and add variable categories
+var_imp <- var_imp %>%
+  left_join(pred_tab %>% dplyr::select(Predictor, Category), by="Predictor") %>%
+  filter(!is.na(Predictor))
+
+# add category for clay.silt
+var_imp[var_imp$Predictor=="Clay.Silt","Category"] <- "Soil"
+
+write_csv(var_imp, paste0("_figures/VariableImportance_MaxEnt_top10_allTaxa.pdf"))
+
+# summarize mean & SD
+# View(var_imp %>% 
+#        dplyr::select(-Species, -Category) %>% group_by(Predictor) %>% summarize_all(list(mean=mean, sd=sd)))
+
+# plot Permutation importance
+ggplot()+
+  geom_bar(data=var_imp, 
+           aes(x=median, y=reorder(Predictor, median), fill = Category),
+           stat = "identity",
+           position = "dodge")+
+  # stat_summary(data=var_imp, aes(x=maxent, y=reorder(Predictor, maxent,median)),
+  #              geom = "errorbar", fun.min = mean, fun = mean, fun.max = mean, width = .75, linetype="dashed")+
+  xlab("Variable importance (Permutation importance)")+
+  ylab("Predictor")+
+  facet_wrap(vars(Taxon))+
+  theme_bw()+
+  theme(axis.text = element_text(size=12), 
+        axis.title = element_text(size=20), axis.title.y=element_blank(),
+        strip.text = element_text(size = 20),
+        legend.text = element_text(size=12), legend.title = element_blank(), 
+        legend.position = "inside",
+        legend.position.inside = c(0.555,0.635))
+ggsave(paste0("_figures/VariableImportance_MaxEnt_top10_allTaxa.pdf"), 
+       last_plot(),
+       height = 7, width = 9)
 
 
-# #- - - - - - - - - - - - - - - - - - - - -
-# ## Calculate variable importance for richness (lm) ####
-# #- - - - - - - - - - - - - - - - - - - - -
+#- - - - - - - - - - - - - - - - - - - - -
+## Variable importance (NMDS) ####
+#- - - - - - - - - - - - - - - - - - - - -
+
+var_imp <- lapply(taxaNames, function(x){
+  y <- read_csv(paste0("_results/Variable_importance_MaxEnt_", x, ".csv"))
+  
+  # save top 10 predictors
+  z <- y %>%
+    arrange(desc(maxent)) %>% 
+    mutate(Taxon = x)
+  z
+})
+var_imp <- do.call(rbind, var_imp)
+var_imp
+
+var_imp <- var_imp %>% 
+  pivot_wider(names_from=Predictor, values_from = maxent)
+
+var_imp <- data.frame(row.names = var_imp$Species,
+                      var_imp %>% dplyr::select(-Species))
+
+# run NMDS
+set.seed(293)
+var_nmds <- vegan::metaMDS(var_imp %>% dplyr::select(-Taxon), distance = "bray")
+var_nmds
+
+stressplot(var_nmds)
+
+# # Base plot of taxa
+# ordiplot(var_nmds, type = "n")           # empty plot
+# text(var_nmds, display = "sites",        # taxa positions
+#      labels = rownames(var_imp),
+#      cex = 0.8, col = "steelblue")
 # 
-# # load environmental variables (for projections) and species stack as dataframe
-# load(paste0(data_wd, "/_results/EnvPredictor_5km_df_clipped.RData")) #Env_clip_df
-# load(file=paste0(data_wd, "/_results/_Maps/SDM_stack_bestPrediction_binary_", Taxon_name, ".RData")) #species_stack
-# 
-# data_stack <- species_stack %>% full_join(Env_clip_df)
-# 
-# lm1 <- lm(data=data_stack, Richness~MAT+Dist_Coast+MAP_Seas+CEC+Elev+P+Pop_Dens+Agriculture+pH+Clay.Silt)
-# summary(lm1)
-# confint(lm1)
-# 
-# lm_varImp <- data.frame("t_value"=summary(lm1)[["coefficients"]][,"t value"])
-# lm_varImp$Predictor <- rownames(lm_varImp)
-# lm_varImp <- lm_varImp %>% filter(Predictor != "(Intercept)")
-# lm_varImp$t_abs <- abs(lm_varImp$t_value)
-# lm_varImp$Direction <- factor(sign(lm_varImp$t_value), 1:(-1), c("positive", "neutral", "negative"))
-# 
-# # transform to long format and add variable categories
-# lm_varImp <- lm_varImp%>%
-#   left_join(pred_tab %>% dplyr::select(Predictor, Category), by="Predictor")
-# 
-# # add category for clay.silt
-# lm_varImp[lm_varImp$Predictor=="Clay.Silt","Category"] <- "Soil"
-# 
-# plotTopVI <- lm_varImp %>% dplyr::select(t_abs, Predictor, Category, Direction) %>% arrange(desc(t_abs)) %>%
-#   ggplot(aes(x=reorder(Predictor, t_abs), y=t_abs, fill=Category)) + 
-#   geom_segment(aes(x=reorder(Predictor, t_abs), xend=reorder(Predictor, t_abs), y=0, yend=t_abs, lty=Direction), color="black") +
-#   geom_point(aes(color=Category), size=4, alpha=1) +
-#   coord_flip() +
-#   xlab("Predictors")+ylab("Variable importance (SR)")+
-#   theme_bw()+theme(aspect.ratio=1/1)
-# plotTopVI
-# 
-# png(paste0(data_wd, "/_figures/VariableImportance_biomod_lm_", Taxon_name, ".png")); plotTopVI; dev.off()
-# 
-# # save model summary
-# sink(paste0(data_wd, "/_results/Summary_lm1_Crassiclitellata_varImp.txt"))
-# print(summary(lm1))
-# sink()
+# # Optional: add vectors for environmental variables
+# fit <- envfit(var_nmds, var_imp, permutations = 999)
+# plot(fit, col = "black")
+
+nmds_scores <- as.data.frame(scores(var_nmds, display = "sites"))
+nmds_scores <- nmds_scores %>%
+  rownames_to_column("Species") %>%
+  left_join(var_imp %>% 
+              mutate(Species = rownames(var_imp)) %>%
+              dplyr::select(Taxon, Species), by = "Species")
+
+ggplot(nmds_scores, aes(x = NMDS1, y = NMDS2, color = Taxon)) +
+  geom_hline(aes(yintercept = 0), color = "grey80")+
+  geom_vline(aes(xintercept = 0), color = "grey80")+
+  geom_text(aes(label = Species)) +
+  theme_minimal() +
+  labs(title = "NMDS of Taxa based on Environmental Variable Importance",
+       x = "NMDS1",
+       y = "NMDS2")+
+  theme(panel.grid = element_blank())
+ggsave("_figures/NMDS_varImp.png")
+
+
+## across groups
+var_imp_groups <- lapply(taxaNames, function(x){
+  y <- read_csv(paste0("_results/Variable_importance_MaxEnt_", x, ".csv"))
+  
+  # save top 10 predictors
+  z <- y %>%
+    arrange(desc(maxent)) %>% 
+    mutate(Taxon = x)
+  z
+})
+var_imp_groups <- do.call(rbind, var_imp_groups)
+var_imp_groups <- var_imp_groups %>% 
+  group_by(Taxon, Predictor) %>% 
+  dplyr::select(-Species) %>% 
+  summarize(across(maxent, median))
+var_imp_groups
+
+var_imp_groups <- var_imp_groups %>% 
+  pivot_wider(names_from=Predictor, values_from = maxent)
+
+var_imp_groups <- data.frame(row.names = var_imp_groups$Taxon,
+                      var_imp_groups %>% ungroup() %>% dplyr::select(-Taxon))
+var_imp_groups
+
+# run NMDS
+set.seed(293)
+var_nmds_groups <- vegan::metaMDS(var_imp_groups, distance = "bray")
+var_nmds_groups
+stressplot(var_nmds_groups)
+
+nmds_scores_group <- as.data.frame(scores(var_nmds_groups, display = "sites"))
+nmds_scores_group$Taxon <- rownames(nmds_scores_group)
+
+# Fit environmental vectors
+fit <- envfit(var_nmds, var_imp, permutations = 999)
+env_vectors <- as.data.frame(scores(fit, display = "vectors"))
+env_vectors$Variable <- rownames(env_vectors)
+
+ggplot(nmds_scores_group, aes(x = NMDS1, y = NMDS2, color = Taxon)) +
+  geom_hline(aes(yintercept = 0), color = "grey80")+
+  geom_vline(aes(xintercept = 0), color = "grey80")+
+  geom_text(aes(label = Taxon)) +
+  theme_minimal() +
+  labs(title = "NMDS of Taxa based on Environmental Variable Importance",
+       x = "NMDS1",
+       y = "NMDS2")+
+  theme(panel.grid = element_blank())
+
+ggplot(nmds_scores, aes(x = NMDS1, y = NMDS2, color = Taxon)) +
+  xlim(c(min(c(nmds_scores$NMDS1, nmds_scores_group$NMDS1)),
+         max(c(nmds_scores$NMDS1, nmds_scores_group$NMDS1))))+
+  ylim(c(min(c(nmds_scores$NMDS2, nmds_scores_group$NMDS2)),
+         max(c(nmds_scores$NMDS2, nmds_scores_group$NMDS2))))+
+  geom_hline(aes(yintercept = 0), color = "grey80")+
+  geom_vline(aes(xintercept = 0), color = "grey80")+
+  geom_text(aes(label = Species), cex = 3) +
+  geom_segment(data = env_vectors,
+               aes(x = 0, y = 0, xend = NMDS1, yend = NMDS2),
+               arrow = arrow(length = unit(0.3, "cm")),
+               color = "black") +
+  geom_text(data = env_vectors,
+            aes(x = NMDS1, y = NMDS2, label = Variable),
+            color = "black", vjust = -0.5) +
+  geom_point(data = nmds_scores_group, aes(x = NMDS1, y = NMDS2, fill = Taxon, shape = Taxon), size = 10, color = "black") +
+  scale_shape_manual(values=c(23, 21:25))+
+  #geom_text(data = nmds_scores_group, aes(x = NMDS1, y = NMDS2, label = Taxon), cex = 5, vjust = -1, hjust = 0.5, color = "black") +
+  theme_minimal() +
+  labs(title = "NMDS of Taxa based on Environmental Variable Importance",
+       x = "NMDS1",
+       y = "NMDS2")+
+  theme(panel.grid = element_blank())
+ggsave("_figures/NMDS_varImp_groups.png")
 
 #- - - - - - - - - - - - - - - - - - - - - -
 ## Load UNCERTAINTY (relevant for all plots) ####
