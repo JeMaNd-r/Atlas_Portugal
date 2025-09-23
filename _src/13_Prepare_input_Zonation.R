@@ -50,27 +50,27 @@ for(Taxon_name in taxaNames){
     projection_rast <- paste0("_results/", Taxon_name, "/Ensembles/", get(paste0("species", i)),".tif")
     projection_rast <- projection_rast[projection_rast %in% paste0("_results/", Taxon_name, "/Ensembles/", list.files(paste0("_results/", Taxon_name, "/Ensembles")))]
     temp_species <- get(paste0("species", i))[str_detect( projection_rast, str_c(get(paste0("species", i)), collapse = "|"))]
-    
+
     # load into list
     projection_rast <- terra::rast(projection_rast)
     names(projection_rast) <- paste0(i, "_", temp_species)
-    
+
     projection_rast[projection_rast<500 & !is.na(projection_rast)] <- 0
-    
+
     terra::writeRaster(projection_rast, paste0("_results/Zonation/data/", Taxon_name, "/", i, "_", temp_species, ".tif"), overwrite = TRUE)
-    
+
     # number of cells with probability >500
     n_probability <- terra::ncell(projection_rast) - unlist(lapply(terra::cells(projection_rast, 0), length))
-    
-    temp_list <- data.frame("Taxon" = Taxon_name, 
-                            "ID" = paste0(i, "_", temp_species), 
-                            "SpeciesID" = temp_species, 
+
+    temp_list <- data.frame("Taxon" = Taxon_name,
+                            "ID" = paste0(i, "_", temp_species),
+                            "SpeciesID" = temp_species,
                             "No_cells_probability" = n_probability)
-    
+
     names_list <- c(names_list, list(temp_list))
     
     ## Uncertainty
-    uncertainty_rast <- paste0("_results/", Taxon_name, "/Ensembles/", temp_species,".tif")
+    uncertainty_rast <- paste0("_results/", Taxon_name, "/Uncertainty/CV_", temp_species,".tif")
     uncertainty_rast <- terra::rast(uncertainty_rast)
     names(uncertainty_rast) <- paste0(i, "_", temp_species)
     
@@ -279,10 +279,10 @@ protect_stack <- terra::rast(paste0("_intermediates/Protection_POR_coverage.tif"
 # save layers for Zonation
 for(ly in names(protect_stack)[names(protect_stack) %in% c("PA", "IUCN_PA")]){
   protect_stack[[ly]]
-  terra::writeRaster(protect_stack[[ly]]+1, 
+  terra::writeRaster(protect_stack[[ly]], 
                      filename = paste0("_results/Zonation/POR_", 
                                        ly, 
-                                       "_+1.tif"), 
+                                       ".tif"), 
                      datatype = "INT1U",  # 8-bit unsigned integer
                      overwrite = TRUE)
   print(paste0(ly, " ready."))
@@ -385,6 +385,12 @@ terra::plot(degr_drivers_subset_max)
 degr_drivers_subset_max[is.na(degr_drivers_subset_max)] <- 0
 
 terra::writeRaster(degr_drivers_subset_max, file = "_results/Zonation/Degradation_maxSubset.tif", overwrite = TRUE)
+
+degr_drivers_subset_sum <- sum(degr_drivers_subset, na.rm = TRUE)
+terra::plot(degr_drivers_subset_sum)
+degr_drivers_subset_sum[is.na(degr_drivers_subset_sum)] <- 0
+terra::writeRaster(degr_drivers_subset_sum, file = "_results/Zonation/Degradation_sumSubset.tif", overwrite = TRUE)
+
 
 # # save layers for Zonation
 # for(ly in names(degr_drivers)){
