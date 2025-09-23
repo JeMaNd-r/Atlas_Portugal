@@ -369,11 +369,20 @@ comparison_rast_list
 comparison_df_list
 
 comparison_df <- do.call(rbind, comparison_df_list) 
-
 write_csv(comparison_df, "_results/Zonation_comparisons.csv")
+
+comparison_rast <- lapply(names(comparison_rast_list), function(nm) {
+  r <- comparison_rast_list[[nm]]
+  names(r) <- paste(nm, names(r), sep = " ")  # prefix names
+  r
+}) |> rast()
+
+terra::plot(comparison_rast)
+terra::writeRaster(comparison_rast, "_results/Zonation_comparisons.tif")
 
 ## check out
 comparison_df <- read_csv("_results/Zonation_comparisons.csv")
+comparison_rast <- terra::rast("_results/Zonation_comparisons.tif")
 
 # coverage stats
 coverage_df <- read_csv("_results/Zonation_performance_curve_coverage.csv")
@@ -391,8 +400,16 @@ write_csv(coverage_df_sum, "_results/Zonation_performance_curve_coverage_summary
 #   left_join(coverage_df_sum, by = c("compare_map" = "scenario"), suffix = c("_base", "_compare"))
 
 
+#- - - - - - - - - - - - - - - - - - - - - -
+# Answers to research questions ####
+priority_rast_c <- terra::rast("_results/_Maps/Zonation_priorities.tif")
+comparison_df <- read_csv("_results/Zonation_comparisons.csv")
+coverage_df_sum <- read_csv("_results/Zonation_performance_curve_coverage_summary.csv")
+comparison_rast <- terra::rast("_results/Zonation_comparisons.tif")
 
-## How well do PAs perform? ####
+## How well do PAs perform?
+# - all PA to IUCN PA (x group weight to same weight)
+# - target to complement: all and IUCN PA (and group to same weight)
 comparison_df %>% dplyr::filter(base_map == "target_grW" &
                                   compare_map == "complement_grW")
 comparison_df %>% dplyr::filter(base_map == "complement_grW"  & 
@@ -403,12 +420,27 @@ coverage_df_sum %>% dplyr::filter(scenario == "target_grW" | scenario == "comple
 coverage_df_sum %>% dplyr::filter(scenario == "target_grW" | scenario == "complement_grW" | 
                                     scenario == "complement_grW_allPA") %>%
   mutate(across(where(is.numeric), function(x) x - coverage_PA))
+terra::plot(terra::subset(comparison_rast, str_detect(names(comparison_rast), "c - t")), maxnl = 50)
+terra::plot(terra::subset(comparison_rast, str_detect(names(comparison_rast), "Protected areas [(]c[)]")), maxnl = 50)
 
+terra::plot(c(priority_rast_c$target_grW,
+              priority_rast_c$complement_grW,
+              priority_rast_c$complement_grW_allPA,
+              terra::subset(comparison_rast, str_detect(names(comparison_rast), "^1[%] c - t")),
+              terra::subset(comparison_rast, str_detect(names(comparison_rast), "^5[%] c - t")),
+              terra::subset(comparison_rast, str_detect(names(comparison_rast), "^5[%] Protected areas [(]c[)]"))), 
+            maxnl = 50, nc = 3)
 
 # group weight to all same weight species at least targeted
 comparison_df %>% dplyr::filter(base_map == "target_grW" &
                                   compare_map == "target")
 coverage_df_sum %>% dplyr::filter(scenario == "target_grW" | scenario == "target")
+terra::plot(terra::subset(comparison_rast, str_detect(names(comparison_rast), "Group weights [(]t[)]")), maxnl = 50)
+
+terra::plot(c(priority_rast_c$target_grW,
+              priority_rast_c$target,
+              terra::subset(comparison_rast, str_detect(names(comparison_rast), "^30[%] Group weights [(]t[)]"))), 
+            maxnl = 50, nc = 3)
 
 
 # all species to 10 and 100 at least targeted
@@ -419,24 +451,95 @@ comparison_df %>% dplyr::filter(base_map == "target_grW" &
 coverage_df_sum %>% dplyr::filter(scenario == "target_grW" | 
                                     scenario == "target_10_grW" | 
                                     scenario == "target_100_grW")
-#...maps
 
-# - all PA to IUCN PA x group weight to same weight
+terra::plot(terra::subset(comparison_rast, str_detect(names(comparison_rast), "ESM taxa [(]t[)]")))
+terra::plot(terra::subset(comparison_rast, str_detect(names(comparison_rast), "SDM taxa [(]t[)]")))
 
-# - target to complement: all and IUCN PA and group to same weight
-# - prevent max and subset
+terra::plot(c(priority_rast_c$target_grW,
+              priority_rast_c$target_10_grW,
+              priority_rast_c$target_100_grW,
+              terra::subset(comparison_rast, str_detect(names(comparison_rast), "^1[%] ESM taxa [(]t[)]")),
+              terra::subset(comparison_rast, str_detect(names(comparison_rast), "^30[%] ESM taxa [(]t[)]")),
+              terra::subset(comparison_rast, str_detect(names(comparison_rast), "^30[%] SDM taxa [(]t[)]"))), 
+            maxnl = 50, nc = 3)
+
+# prevent max and subset
+comparison_df %>% dplyr::filter(base_map == "prevent_grW_maxSubset" &
+                                  compare_map == "prevent_grW_max")
+coverage_df_sum %>% dplyr::filter(scenario == "prevent_grW_maxSubset" | scenario == "prevent_grW_max")
+
 # - prevent subset to complement grW
+comparison_df %>% dplyr::filter(base_map == "complement_grW" &
+                                  compare_map == "prevent_grW_maxSubset")
+coverage_df_sum %>% dplyr::filter(scenario == "prevent_grW_maxSubset" | scenario == "complement_grW")
 
-# read curves
+terra::plot(terra::subset(comparison_rast, str_detect(names(comparison_rast), "Driver subset [(]p[)]")))
+terra::plot(terra::subset(comparison_rast, str_detect(names(comparison_rast), "p - c")))
+
+terra::plot(c(priority_rast_c$prevent_grW_maxSubset,
+              priority_rast_c$prevent_grW_max,
+              priority_rast_c$complement_grW,
+              terra::subset(comparison_rast, str_detect(names(comparison_rast), "^5[%] Driver subset [(]p[)]")),
+              terra::subset(comparison_rast, str_detect(names(comparison_rast), "^30[%] Driver subset [(]p[)]")),
+              terra::subset(comparison_rast, str_detect(names(comparison_rast), "^30[%] p - c"))), 
+            maxnl = 50, nc = 3)
+
+#- - - - - - - - - - - - - - - - - - - - - -
+## Maps ####
+terra::plot(c(priority_rast_c$target_grW,
+              priority_rast_c$complement_grW,
+              priority_rast_c$prevent_grW_maxSubset,
+              terra::subset(comparison_rast, str_detect(names(comparison_rast), "^10[%] c - t")),
+              terra::subset(comparison_rast, str_detect(names(comparison_rast), "^10[%] p - t")),
+              terra::subset(comparison_rast, str_detect(names(comparison_rast), "^10[%] p - c"))), 
+            maxnl = 50, nc = 3)
+
+priority_rast_c$tcp <- app(c(priority_rast_c$target_grW, priority_rast_c$complement_grW, priority_rast_c$prevent_grW_maxSubset), 
+                           fun = function(x) x[1] * 100 + x[2] * 10 + x[3])
+terra::plot(as.factor(priority_rast_c$tcp))
+                        
+# load map created using Zonation Multiaction Visualization
+prio_tcp <- terra::rast(paste0(zonation_dir, "/Zonation_priorities_tcp_POR.tiff"))
+prio_tcp
+#terra::plot(prio_tcp)
+terra::plotRGB(terra::subset(prio_tcp, 1:3), r = 1, g = 2, b = 3, stretch="lin")
+   
+#- - - - - - - - - - - - - - - - - - - - - -
+## Summary map ####
+
+priority_rast_c_sum <- sum(priority_rast_c>=3)
+terra::plot(priority_rast_c_sum) #top 5%
+
+target_sum <- sum(terra::subset(priority_rast_c, str_detect(names(priority_rast_c), "target"))>=3)
+complement_sum <- sum(terra::subset(priority_rast_c, str_detect(names(priority_rast_c), "complement"))>=3)
+prevent_sum <- sum(terra::subset(priority_rast_c, str_detect(names(priority_rast_c), "prevent"))>=3)
+
+names(target_sum) <- "targeted"
+names(complement_sum) <- "complementing"
+names(prevent_sum) <- "prevention"
+
+terra::plot(c(target_sum, complement_sum, prevent_sum), nr=3)
+
+pdf("_figures/Zonation_priorities_sum_top5.pdf")
+terra::plot(priority_rast_c_sum) #top 5%
+dev.off()
+
+writeRaster(priority_rast_c_sum, "_results/Zonation_priorities_sum_top5.tif",
+            datatype = "INT2U", overwrite = TRUE)
+terra::plot(rast("_results/Zonation_priorities_sum_top5.tif")) #fliped for hierarchical mask
+
+#- - - - - - - - - - - - - - - - - - - - - -
+## Performance curves ####
 curve_target <- read_delim(paste0(zonation_dir, "/", "target_grW",
                                 "/subregion_1/summary_curves.csv"))
 curve_complement <- read_delim(paste0(zonation_dir, "/", "complement_grW",
                                       "/subregion_1/summary_curves.csv"))
 curve_complementAll <- read_delim(paste0(zonation_dir, "/", "complement_grW_allPA",
                                          "/subregion_1/summary_curves.csv"))
+curve_prevent <- read_delim(paste0(zonation_dir, "/", "prevent_grW_maxSubset",
+                                      "/subregion_1/summary_curves.csv"))
 top_legend
 temp_cover <- max(temp_curve[temp_curve$rank>=temp_rank, "weighted_mean_positive"])
-
 
 # theme_curve <- theme_set(theme_bw()+
 #                            theme(panel.border = element_blank(),
@@ -452,9 +555,13 @@ ggplot()+
   geom_line(data = curve_target, aes(x = rank, y = weighted_mean_positive, 
                                      color = "targeted", lty = "targeted"),
             lwd = 1.5)+
+  geom_line(data = curve_prevent, aes(x = rank, y = weighted_mean_positive,
+                                  color = "prevention",
+                                  lty = "prevention"),
+            lwd = 1.5)+
   geom_line(data = curve_complement, aes(x = rank, y = weighted_mean_positive,
-                                  color = "complementing",
-                                  lty = "complementing"),
+                                         color = "complementing",
+                                         lty = "complementing"),
             lwd = 1.5)+
   geom_line(data = curve_complementAll, aes(x = rank, y = weighted_mean_positive,
                                      color = "complementing (all PAs)",
@@ -464,11 +571,13 @@ ggplot()+
   ylab("Weighted mean coverage of features")+
   scale_color_manual(values = c("targeted" = "#E18616",
                               "complementing" = "#059041",
-                              "complementing (all PAs)" = "#059041"),
+                              "complementing (all PAs)" = "#059041",
+                              "prevention" = "#633708"),
                      name = "Approach")+
   scale_linetype_manual(values = c("targeted" = "solid",
                                  "complementing" = "solid",
-                                 "complementing (all PAs)" = "twodash"),
+                                 "complementing (all PAs)" = "twodash",
+                                 "prevention" = "solid"),
                         name = "Approach")+
   scale_x_continuous(limits = c(0,1), expand = c(0,0))+
   scale_y_continuous(limits = c(0,1), expand = c(0,0))+
@@ -492,31 +601,50 @@ curve_target_10 <- read_delim(paste0(zonation_dir, "/", "target_10_grW",
                                         "/subregion_1/summary_curves.csv"))
 curve_target_100 <- read_delim(paste0(zonation_dir, "/", "target_100_grW",
                                      "/subregion_1/summary_curves.csv"))
+curve_preventAll <- read_delim(paste0(zonation_dir, "/", "prevent_grW_allPA_maxSubset",
+                                      "/subregion_1/summary_curves.csv"))
+curve_prevent_allD <- read_delim(paste0(zonation_dir, "/", "prevent_grW_max",
+                                      "/subregion_1/summary_curves.csv"))
 
 ggplot()+
+  geom_line(data = curve_preventAll, aes(x = rank, y = weighted_mean_positive,
+                                         color = "prevention (all PAs)",
+                                         lty = "prevention (all PAs)",
+                                         lwd = "prevention (all PAs)"))+
+  geom_line(data = curve_prevent_allD, aes(x = rank, y = weighted_mean_positive,
+                                         color = "prevention (all drivers)",
+                                         lty = "prevention (all drivers)",
+                                         lwd = "prevention (all drivers)"))+
+
+  geom_line(data = curve_complementAll, aes(x = rank, y = weighted_mean_positive,
+                                            color = "complementing (all PAs)",
+                                            lty = "complementing (all PAs)",
+                                            lwd = "complementing (all PAs)"))+
+
   geom_line(data = curve_target_noGrW, aes(x = rank, y = weighted_mean_positive, 
                                            color = "targeted (no group weight)", 
                                            lty = "targeted (no group weight)",
                                            lwd = "targeted (no group weight)"))+
   geom_line(data = curve_target_100, aes(x = rank, y = weighted_mean_positive, 
-                                           color = "targeted (SDMs)", 
-                                           lty = "targeted (SDMs)",
-                                          lwd = "targeted (SDMs)"))+
+                                         color = "targeted (SDMs)", 
+                                         lty = "targeted (SDMs)",
+                                         lwd = "targeted (SDMs)"))+
   geom_line(data = curve_target_10, aes(x = rank, y = weighted_mean_positive, 
-                                           color = "targeted (ESMs)", 
-                                           lty = "targeted (ESMs)",
-                                           lwd = "targeted (ESMs)"))+
+                                        color = "targeted (ESMs)", 
+                                        lty = "targeted (ESMs)",
+                                        lwd = "targeted (ESMs)"))+
+  
   geom_line(data = curve_target, aes(x = rank, y = weighted_mean_positive, 
                                      color = "targeted", lty = "targeted",
-                                     lwd = "targeted"),)+
+                                     lwd = "targeted"))+
+   geom_line(data = curve_prevent, aes(x = rank, y = weighted_mean_positive,
+                                      color = "prevention",
+                                      lty = "prevention",
+                                      lwd = "prevention"))+
   geom_line(data = curve_complement, aes(x = rank, y = weighted_mean_positive,
                                          color = "complementing",
                                          lty = "complementing",
                                          lwd = "complementing"))+
-  geom_line(data = curve_complementAll, aes(x = rank, y = weighted_mean_positive,
-                                            color = "complementing (all PAs)",
-                                            lty = "complementing (all PAs)",
-                                            lwd = "complementing (all PAs)"))+
   xlab("Priority rank")+ 
   ylab("Weighted mean coverage of features")+
   scale_color_manual(values = c("targeted" = "#E18616",
@@ -524,21 +652,30 @@ ggplot()+
                                 "targeted (SDMs)" = "#E18616",
                                 "targeted (ESMs)" = "#E18616",
                                 "complementing" = "#059041",
-                                "complementing (all PAs)" = "#059041"),
+                                "complementing (all PAs)" = "#059041",
+                                "prevention" = "#633708",
+                                "prevention (all PAs)" = "#633708",
+                                "prevention (all drivers)" = "#633708"),
                      name = "Approach")+
   scale_linetype_manual(values = c("targeted" = "solid",
                                    "targeted (no group weight)" = "twodash",
                                    "targeted (SDMs)" = "dotted",
                                    "targeted (ESMs)" = "dotdash",
                                    "complementing" = "solid",
-                                   "complementing (all PAs)" = "twodash"),
+                                   "complementing (all PAs)" = "twodash",
+                                   "prevention" = "solid",
+                                   "prevention (all PAs)" = "twodash",
+                                   "prevention (all drivers)" = "dotted"),
                         name = "Approach")+
   scale_linewidth_manual(values = c("targeted" = 1.5,
                                    "targeted (no group weight)" = 1,
                                    "targeted (SDMs)" = 1,
                                    "targeted (ESMs)" = 1,
                                    "complementing" = 1.5,
-                                   "complementing (all PAs)" = 1),
+                                   "complementing (all PAs)" = 1,
+                                   "prevention" = 1.5,
+                                   "prevention (all PAs)" = 1,
+                                   "prevention (all drivers)" = 1),
                         name = "Approach")+
   scale_x_continuous(limits = c(0,1), expand = c(0,0))+
   scale_y_continuous(limits = c(0,1), expand = c(0,0))+
@@ -547,23 +684,25 @@ ggplot()+
         panel.grid.minor = element_blank(),
         legend.position = "inside",
         legend.background = element_rect(color = "black"),
-        legend.position.inside = c(0.4, 0.2),
+        legend.position.inside = c(0.25, 0.3),
         axis.title = element_text(size = 15),
         axis.text = element_text(size = 9),
         legend.text = element_text(size = 9),
         legend.title = element_text(size = 15))
-ggsave("_figures/Zonation_performance_Appendix.png", height = 5, width = 5)
+ggsave("_figures/Zonation_performance_Appendix.png", height = 6, width = 6)
 
 # terra::plot(c(
 #   terra::subset(priority_rast_c, c("target_grW", "complement_grW")),
 #   comparison_rast$`c - t`), nc=3)
 
 
+
+
 #- - - - - - - - - - - - - - - - - - - - - -
 ## Compare with richness maps ####
-features <- read_delim(paste0(zonation_dir, "/features.txt"))
-features_10 <- read_delim(paste0(zonation_dir, "/features_10.txt"))
-features_100 <- read_delim(paste0(zonation_dir, "/features_100.txt"))
+features <- read_delim(paste0(zonation_dir, "/target_grW/features.txt"))
+features_10 <- read_delim(paste0(zonation_dir, "/target_10_grW/features_10.txt"))
+features_100 <- read_delim(paste0(zonation_dir, "/target_100_grW/features_100.txt"))
 
 richness <- lapply(unique(features$group), function(x){
   temp_features <- features %>% filter(group == x)
@@ -580,3 +719,38 @@ terra::writeRaster(richness, "_results/_Maps/Richness_allTaxa_features.tif", ove
 pdf("_figures/Richness_allTaxa_features.pdf")
 terra::plot(richness)
 dev.off()
+
+# ESM species
+richness_10 <- lapply(unique(features_10$group), function(x){
+  temp_features <- features_10 %>% filter(group == x)
+  temp_rast <- terra::rast(paste0(zonation_dir, "/data/", temp_features$filename))
+  temp_rast <- terra::app(temp_rast, sum)/1000
+  names(temp_rast) <- str_extract(temp_features$filename[1], "(?<=\\.\\./data/)[^/]+")
+  temp_rast
+})
+richness_10 <- do.call(c, richness_10)
+
+terra::plot(richness_10)
+terra::writeRaster(richness_10, "_results/_Maps/Richness_allTaxa_features_10.tif", overwrite=TRUE)
+
+pdf("_figures/Richness_allTaxa_features_10.pdf")
+terra::plot(richness_10)
+dev.off()
+
+# SDM species
+richness_100 <- lapply(unique(features_100$group), function(x){
+  temp_features <- features_100 %>% filter(group == x)
+  temp_rast <- terra::rast(paste0(zonation_dir, "/data/", temp_features$filename))
+  temp_rast <- terra::app(temp_rast, sum)/1000
+  names(temp_rast) <- str_extract(temp_features$filename[1], "(?<=\\.\\./data/)[^/]+")
+  temp_rast
+})
+richness_100 <- do.call(c, richness_100)
+
+terra::plot(richness_100)
+terra::writeRaster(richness_100, "_results/_Maps/Richness_allTaxa_features_100.tif", overwrite=TRUE)
+
+pdf("_figures/Richness_allTaxa_features_100.pdf")
+terra::plot(richness_100)
+dev.off()
+
