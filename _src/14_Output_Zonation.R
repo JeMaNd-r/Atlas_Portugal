@@ -507,8 +507,28 @@ terra::plotRGB(terra::subset(prio_tcp, 1:3), r = 1, g = 2, b = 3, stretch="lin")
 #- - - - - - - - - - - - - - - - - - - - - -
 ## Summary map ####
 
-priority_rast_c_sum <- sum(priority_rast_c>=3)
+priority_rast_c_sum <- priority_rast_c
+priority_rast_c_sum[priority_rast_c_sum==5] <- NA
+priority_rast_c_sum <- sum(priority_rast_c_sum>=3)
 terra::plot(priority_rast_c_sum) #top 5%
+
+overlap_df <- as.data.frame(table(values(priority_rast_c_sum)))
+overlap_df$Prop <- overlap_df$Freq / 40066
+hist(overlap_df$Freq)
+overlap_df %>% arrange(Prop)
+
+overlap_df %>% 
+  mutate(Freq_cumsum = cumsum(Freq),
+         Prop_cumsum = Freq_cumsum / (40066))
+overlap_df %>% 
+  mutate(Freq_cumsum = cumsum(Freq),
+         Prop_cumsum = Freq_cumsum / (40066 - coverage_pa))
+overlap_df %>%
+  arrange(desc(Var1)) %>%
+  mutate(Freq_cumsum = cumsum(Freq),
+         Prop_cumsum = Freq_cumsum / (40066 - coverage_pa))
+overlap_df
+
 
 target_sum <- sum(terra::subset(priority_rast_c, str_detect(names(priority_rast_c), "target"))>=3)
 complement_sum <- sum(terra::subset(priority_rast_c, str_detect(names(priority_rast_c), "complement"))>=3)
@@ -527,6 +547,9 @@ dev.off()
 writeRaster(priority_rast_c_sum, "_results/Zonation_priorities_sum_top5.tif",
             datatype = "INT2U", overwrite = TRUE)
 terra::plot(rast("_results/Zonation_priorities_sum_top5.tif")) #fliped for hierarchical mask
+
+# manually: load to Zonation just like complement_grW analysis
+# output -> performance curve
 
 #- - - - - - - - - - - - - - - - - - - - - -
 ## Performance curves ####
@@ -691,9 +714,59 @@ ggplot()+
         legend.title = element_text(size = 15))
 ggsave("_figures/Zonation_performance_Appendix.png", height = 6, width = 6)
 
-# terra::plot(c(
-#   terra::subset(priority_rast_c, c("target_grW", "complement_grW")),
-#   comparison_rast$`c - t`), nc=3)
+#- - - - - - - - - - - - - - - - - - - - - -
+### All curves all-together ####
+curve_list <- list()
+for(approach in approaches){
+  for(protection_distance in protection_distances){
+    for(degradation_weight in degradation_weights){ 
+      for(protected_area in protected_areas){
+        for(species_number in species_numbers){
+          for(group_weight in group_weights) try({
+            
+            temp_curve <- read_delim(paste0(zonation_dir, "/",  approach, 
+                                            species_number, group_weight,
+                                            protected_area, protection_distance, 
+                                            degradation_weight,
+                                            "/subregion_1/summary_curves.csv"))
+            temp_curve$scenario <- paste0(approach, 
+                                          species_number, group_weight,
+                                          protected_area, protection_distance, 
+                                          degradation_weight)
+            
+            temp_curve$approach <- approach
+            temp_curve$degradation_weight <- degradation_weight
+            temp_curve$subscenario <- paste0(species_number, group_weight,
+                                             protected_area, protection_distance) 
+            
+            curve_list <- c(curve_list, list(temp_curve))
+          })
+        }}}}}
+
+curve_list <- do.call(rbind, curve_list)
+curve_list
+
+ggplot(data = curve_list, 
+       aes(x = rank, y = weighted_mean_positive, color = subscenario))+
+  geom_line(lwd = 0.1)+
+  
+  facet_wrap(vars(approach, degradation_weight))+
+  ylab("Weighted mean coverage of features")+
+  scale_x_continuous(limits = c(0,1), expand = c(0,0))+
+  scale_y_continuous(limits = c(0,1), expand = c(0,0))+
+  theme_bw()+
+  theme(panel.border = element_blank(),
+        panel.grid.minor = element_blank(),
+        legend.position = "right",
+        legend.background = element_rect(color = "black"),
+        legend.position.inside = c(0.25, 0.3),
+        axis.title = element_text(size = 15),
+        axis.text = element_text(size = 9),
+        legend.text = element_text(size = 9),
+        legend.title = element_text(size = 15))
+ggsave("_figures/Zonation_performance_allScenarios.png", height = 6, width = 6)
+
+write_csv(curve_list, "_results/Zonation_performance_allScenarios.csv")
 
 
 
