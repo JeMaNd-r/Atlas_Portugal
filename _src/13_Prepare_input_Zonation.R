@@ -368,28 +368,30 @@ degr_drivers$salinization <- 2 * degr_drivers$salinization
 degr_drivers_sum <- sum(degr_drivers, na.rm = TRUE)
 terra::plot(degr_drivers_sum)
 
-degr_drivers_sum[is.na(degr_drivers_sum)] <- 0
+#degr_drivers_sum[is.na(degr_drivers_sum)] <- 0
 
 terra::writeRaster(degr_drivers_sum, file = "_results/Zonation/Degradation_sum.tif", overwrite = TRUE)
 terra::writeRaster(degr_drivers_sum * 10, file = "_results/Zonation/Degradation_sumx10.tif", overwrite = TRUE)
 
 degr_drivers_max <- max(degr_drivers, na.rm = TRUE)
 terra::plot(degr_drivers_max)
-degr_drivers_max[is.na(degr_drivers_max)] <- 0
+#degr_drivers_max[is.na(degr_drivers_max)] <- 0
 terra::writeRaster(degr_drivers_max, file = "_results/Zonation/Degradation_max.tif", overwrite = TRUE)
 terra::writeRaster(degr_drivers_max/3, file = "_results/Zonation/Degradation_maxdiv3.tif", overwrite = TRUE)
 
-degr_drivers_subset <- subset(degr_drivers, c("erosion", "compaction", "salinization"))
+degr_drivers_subset <- terra::subset(degr_drivers, c("erosion", "compaction", "salinization"))
 degr_drivers_subset_max <- max(degr_drivers_subset, na.rm = TRUE)
 terra::plot(degr_drivers_subset_max)
-degr_drivers_subset_max[is.na(degr_drivers_subset_max)] <- 0
+#degr_drivers_subset_max[is.na(degr_drivers_subset_max)] <- 0
 
 terra::writeRaster(degr_drivers_subset_max, file = "_results/Zonation/Degradation_maxSubset.tif", overwrite = TRUE)
 
 degr_drivers_subset_sum <- sum(degr_drivers_subset, na.rm = TRUE)
 terra::plot(degr_drivers_subset_sum)
-degr_drivers_subset_sum[is.na(degr_drivers_subset_sum)] <- 0
+#degr_drivers_subset_sum[is.na(degr_drivers_subset_sum)] <- 0
 terra::writeRaster(degr_drivers_subset_sum, file = "_results/Zonation/Degradation_sumSubset.tif", overwrite = TRUE)
+
+terra::plot(c(degr_drivers_sum, degr_drivers_max, degr_drivers_subset_max), nc=3)
 
 
 # # save layers for Zonation
