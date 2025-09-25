@@ -60,6 +60,10 @@ por_sf <- nuts_sf[nuts_sf$CNTR_CODE=="PT",]
 por_sf <- por_sf[por_sf$id == "PT11",] #only continental Portugal
 por_sf <- sf::st_crop(por_sf, sf::st_bbox(c(xmin=extent_portugal[1], xmax=extent_portugal[2], ymin=extent_portugal[3], ymax=extent_portugal[4])))
 
+# define names of taxonomic groups
+taxaNames <- c("Crassiclitellata", "Fungi", "Nematodes", "Protists", "Eukaryotes", "Bacteria") #
+taxaNames
+
 #- - - - - - - - - - - - - - - - - - - - -
 ## Running progress ####
 #- - - - - - - - - - - - - - - - - - - - -
@@ -609,7 +613,7 @@ set.seed(293)
 var_nmds <- vegan::metaMDS(var_imp %>% dplyr::select(-Taxon), distance = "bray")
 var_nmds
 
-stressplot(var_nmds)
+vegan::stressplot(var_nmds)
 
 # # Base plot of taxa
 # ordiplot(var_nmds, type = "n")           # empty plot
@@ -627,11 +631,34 @@ nmds_scores <- nmds_scores %>%
   left_join(var_imp %>% 
               mutate(Species = rownames(var_imp)) %>%
               dplyr::select(Taxon, Species), by = "Species")
+# Group median (alternative)
+group_medians <- nmds_scores %>%
+  group_by(Taxon) %>%
+  summarise(NMDS1 = median(NMDS1),
+            NMDS2 = median(NMDS2))
+
+# vectors of predictors
+fit <- envfit(var_nmds, var_imp %>% dplyr::select(-Taxon), permutations = 999)
+env_vectors <- as.data.frame(scores(fit, display = "vectors"))
+env_vectors$Variable <- rownames(env_vectors)
 
 ggplot(nmds_scores, aes(x = NMDS1, y = NMDS2, color = Taxon)) +
+  xlim(c(-1.6, 1))+ ylim(c(-1.5, 1.3))+
+  stat_ellipse(data = nmds_scores, aes(group = Taxon, color = Taxon), #%>% filter(Taxon != "Crassiclitellata")
+               type = "t", level = 0.95, linetype = 2, linewidth = 1) +
   geom_hline(aes(yintercept = 0), color = "grey80")+
   geom_vline(aes(xintercept = 0), color = "grey80")+
-  geom_text(aes(label = Species)) +
+  geom_text(aes(label = Species), cex = 1) +
+  geom_segment(data = env_vectors,
+               aes(x = 0, y = 0, xend = NMDS1, yend = NMDS2),
+               arrow = arrow(length = unit(0.3, "cm")),
+               color = "black",
+               inherit.aes = FALSE) +
+  geom_text(data = env_vectors,
+            aes(x = NMDS1, y = NMDS2, label = Variable),
+            color = "black", vjust = -0.5, inherit.aes = FALSE)+
+  geom_point(data = group_medians, aes(x = NMDS1, y = NMDS2, fill = Taxon, shape = Taxon), size = 10, color = "black", alpha = 0.5) +
+  scale_shape_manual(values=c(21:23, 21:25))+
   theme_minimal() +
   labs(title = "NMDS of Taxa based on Environmental Variable Importance",
        x = "NMDS1",
@@ -639,79 +666,6 @@ ggplot(nmds_scores, aes(x = NMDS1, y = NMDS2, color = Taxon)) +
   theme(panel.grid = element_blank())
 ggsave("_figures/NMDS_varImp.png")
 
-
-## across groups
-var_imp_groups <- lapply(taxaNames, function(x){
-  y <- read_csv(paste0("_results/Variable_importance_MaxEnt_", x, ".csv"))
-  
-  # save top 10 predictors
-  z <- y %>%
-    arrange(desc(maxent)) %>% 
-    mutate(Taxon = x)
-  z
-})
-var_imp_groups <- do.call(rbind, var_imp_groups)
-var_imp_groups <- var_imp_groups %>% 
-  group_by(Taxon, Predictor) %>% 
-  dplyr::select(-Species) %>% 
-  summarize(across(maxent, median))
-var_imp_groups
-
-var_imp_groups <- var_imp_groups %>% 
-  pivot_wider(names_from=Predictor, values_from = maxent)
-
-var_imp_groups <- data.frame(row.names = var_imp_groups$Taxon,
-                      var_imp_groups %>% ungroup() %>% dplyr::select(-Taxon))
-var_imp_groups
-
-# run NMDS
-set.seed(293)
-var_nmds_groups <- vegan::metaMDS(var_imp_groups, distance = "bray")
-var_nmds_groups
-stressplot(var_nmds_groups)
-
-nmds_scores_group <- as.data.frame(scores(var_nmds_groups, display = "sites"))
-nmds_scores_group$Taxon <- rownames(nmds_scores_group)
-
-# Fit environmental vectors
-fit <- envfit(var_nmds, var_imp, permutations = 999)
-env_vectors <- as.data.frame(scores(fit, display = "vectors"))
-env_vectors$Variable <- rownames(env_vectors)
-
-ggplot(nmds_scores_group, aes(x = NMDS1, y = NMDS2, color = Taxon)) +
-  geom_hline(aes(yintercept = 0), color = "grey80")+
-  geom_vline(aes(xintercept = 0), color = "grey80")+
-  geom_text(aes(label = Taxon)) +
-  theme_minimal() +
-  labs(title = "NMDS of Taxa based on Environmental Variable Importance",
-       x = "NMDS1",
-       y = "NMDS2")+
-  theme(panel.grid = element_blank())
-
-ggplot(nmds_scores, aes(x = NMDS1, y = NMDS2, color = Taxon)) +
-  xlim(c(min(c(nmds_scores$NMDS1, nmds_scores_group$NMDS1)),
-         max(c(nmds_scores$NMDS1, nmds_scores_group$NMDS1))))+
-  ylim(c(min(c(nmds_scores$NMDS2, nmds_scores_group$NMDS2)),
-         max(c(nmds_scores$NMDS2, nmds_scores_group$NMDS2))))+
-  geom_hline(aes(yintercept = 0), color = "grey80")+
-  geom_vline(aes(xintercept = 0), color = "grey80")+
-  geom_text(aes(label = Species), cex = 3) +
-  geom_segment(data = env_vectors,
-               aes(x = 0, y = 0, xend = NMDS1, yend = NMDS2),
-               arrow = arrow(length = unit(0.3, "cm")),
-               color = "black") +
-  geom_text(data = env_vectors,
-            aes(x = NMDS1, y = NMDS2, label = Variable),
-            color = "black", vjust = -0.5) +
-  geom_point(data = nmds_scores_group, aes(x = NMDS1, y = NMDS2, fill = Taxon, shape = Taxon), size = 10, color = "black") +
-  scale_shape_manual(values=c(23, 21:25))+
-  #geom_text(data = nmds_scores_group, aes(x = NMDS1, y = NMDS2, label = Taxon), cex = 5, vjust = -1, hjust = 0.5, color = "black") +
-  theme_minimal() +
-  labs(title = "NMDS of Taxa based on Environmental Variable Importance",
-       x = "NMDS1",
-       y = "NMDS2")+
-  theme(panel.grid = element_blank())
-ggsave("_figures/NMDS_varImp_groups.png")
 
 #- - - - - - - - - - - - - - - - - - - - - -
 ## Load UNCERTAINTY (relevant for all plots) ####
@@ -1152,32 +1106,51 @@ dev.off()
 ## Model performance ####
 #- - - - - - - - - - - - - - - - - - - - -
 
-data_eval <- read_csv(paste0("_results/Model_evaluation_", Taxon_name, ".csv"))
+data_eval <- lapply(taxaNames, function(x){
+  y <- read_csv(paste0("_results/Model_evaluation_", x, ".csv"))
+  
+  # save top 10 predictors
+  z <- y %>%
+    mutate(Taxon = x,
+           Model = ifelse(is.na(KAPPA), 10, 100))
+  z
+})
+data_eval <- do.call(rbind, data_eval)
+data_eval
 
-data_eval %>% dplyr::select(-Species) %>% summarize_all(mean)
-data_eval %>% dplyr::select(-Species) %>% summarize_all(sd)
+data_eval %>% dplyr::select(-Species) %>% group_by(Model, Taxon) %>% summarize_all(median, na.rm=TRUE) #note: ESMs no kappa
+data_eval %>% dplyr::select(-Species) %>% group_by(Model, Taxon) %>% summarize_all(sd, na.rm=TRUE) #note: ESMs no kappa
 
 # point plot with lables, tss over roc
 ggplot(data_eval, 
-       aes(x=MaxTSS, y=AUC, group=Species))+
+       aes(x=MaxTSS, y=AUC, color=Species))+
   #geom_point()+
   geom_text(aes(label = Species), nudge_x = 0, nudge_y = 0, check_overlap = F, cex=2)+
-  #facet_wrap(vars(Species))+
+  facet_wrap(vars(Model))+
   xlim(0,1)+
   theme_bw()+
   theme(legend.position = "none")
-ggsave(paste0("_figures/Model_performance_", Taxon_name, ".pdf"))
+ggsave(paste0("_figures/Model_performance_allTaxa.pdf"))
 
 # boxplot, tss per algorithm
-ggplot(data_eval, aes(x=MaxTSS))+
+ggplot(data_eval, aes(x=MaxTSS, y = Taxon))+
   geom_boxplot()+
-  geom_jitter(aes(y=0), height = 0.1, color = "grey80")+
+  geom_jitter(aes(color = as.factor(Taxon)), height = 0.1)+
+  facet_grid(vars(Model))+
   xlim(0,1)+
   coord_flip()+
-  theme_bw()
-ggsave(paste0("_figures/Model_performance_", Taxon_name, "_boxplot.pdf"),
+  theme_bw()+
+  theme(panel.grid.major.x = element_blank())
+ggsave(paste0("_figures/Model_performance_allTaxa_boxplot.pdf"),
        height = 4, width = 2)
 
+data_eval %>% group_by(Model) %>% count()
+data_eval %>% filter(AUC>=0.7) %>% 
+  group_by(Model, Taxon) %>% count()
+data_eval %>% filter(AUC>=0.7) %>% 
+  group_by(Model) %>% count()
+data_eval %>% filter(AUC<0.7) %>% 
+  group_by(Model)
 
 #- - - - - - - - - - - - - - - - - - - - -
 #- - - - - - - - - - - - - - - - - - - - -
