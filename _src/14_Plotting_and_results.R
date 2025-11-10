@@ -405,7 +405,7 @@ ggsave(paste0("_figures/OccurrencesBIOMOD_allGroups_perGroup.pdf"),
        height = 12, width = 12)
 
 p_occ_bm_sum <- ggplot()+
-  #geom_map(data = world.inp, map = world.inp, aes(map_id = region), fill = "white", color = "grey80") +
+  geom_map(data = world.inp, map = world.inp, aes(map_id = region), fill = "white", color = "grey80") +
   geom_sf(data = por_sf)+
   coord_sf(xlim = c(extent_portugal[1], extent_portugal[2]),
            ylim = c(extent_portugal[3], extent_portugal[4]), expand = FALSE)+
@@ -1133,14 +1133,17 @@ ggplot(data_eval,
 ggsave(paste0("_figures/Model_performance_allTaxa.pdf"))
 
 # boxplot, tss per algorithm
-ggplot(data_eval, aes(x=MaxTSS, y = Taxon))+
-  geom_boxplot()+
-  geom_jitter(aes(color = as.factor(Taxon)), height = 0.1)+
+ggplot()+
+  geom_boxplot(data = data_eval, aes(x=AUC, y = Taxon, fill = "AUC"), alpha = 0.2, outlier.alpha = 1, 
+               outlier.shape = 18, outliers = TRUE, staplewidth = 0.2, lty = "longdash")+
+  geom_jitter(data = data_eval, aes(x=AUC, y = Taxon, color = "AUC"), height = 0.2, alpha = 0.5)+
+  geom_boxplot(data = data_eval, aes(x=MaxTSS, y = Taxon, fill = "TSS"), alpha = 0.2, outlier.alpha = 1, outlier.shape = 17, outliers = TRUE, staplewidth = 0.2)+
+  geom_jitter(data = data_eval, aes(x=MaxTSS, y = Taxon, color = "TSS"), height = 0.2, alpha = 0.5)+
   facet_grid(vars(Model))+
   xlim(0,1)+
-  coord_flip()+
+  #coord_flip()+
   theme_bw()+
-  theme(panel.grid.major.x = element_blank())
+  theme(panel.grid.major.y = element_blank())
 ggsave(paste0("_figures/Model_performance_allTaxa_boxplot.pdf"),
        height = 4, width = 2)
 
@@ -1150,7 +1153,7 @@ data_eval %>% filter(AUC>=0.7) %>%
 data_eval %>% filter(AUC>=0.7) %>% 
   group_by(Model) %>% count()
 data_eval %>% filter(AUC<0.7) %>% 
-  group_by(Model)
+  group_by(Model) %>% arrange(AUC)
 
 #- - - - - - - - - - - - - - - - - - - - -
 #- - - - - - - - - - - - - - - - - - - - -
