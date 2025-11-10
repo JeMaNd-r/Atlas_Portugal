@@ -11,9 +11,11 @@ list.files(zonation_dir, include.dirs = TRUE)
 
 library(terra)
 library(tidyverse)
+library(patchwork)
 
 approaches <- c("target", "complement", "prevent")
 species_numbers <- c("", "_10", "_100")
+species_uncertainties <- c("", "_noCert")
 group_weights <- c("", "_grW")
 protected_areas <- c("", "_allPA")
 protection_distances <- c("", "_dist")
@@ -37,33 +39,34 @@ for(approach in approaches){
   for(degradation_weight in degradation_weights){ 
   for(protected_area in protected_areas){
   for(species_number in species_numbers){
+  for(species_uncertainty in species_uncertainties)
   for(group_weight in group_weights) try({
     # print(paste0(zonation_dir, "/", approach, 
-    #              species_number, group_weight,
+    #              species_number, species_uncertainty, group_weight,
     #              protected_area, protection_distance, degradation_weight,
     #              "/subregion_1"))
     
     if(dir.exists(paste0(paste0(zonation_dir, "/", approach, 
-                                species_number, group_weight,
+                                species_number, species_uncertainty, group_weight,
                                 protected_area, protection_distance, degradation_weight,
                                 "/subregion_1")))){
       temp_rast <- terra::rast(paste0(zonation_dir, "/", approach, 
-                                      species_number, group_weight,
+                                      species_number, species_uncertainty, group_weight,
                                       protected_area, protection_distance, degradation_weight, "/merged_rankmap.tif"))
     } else {
       temp_rast <- terra::rast(paste0(zonation_dir, "/", approach, 
-                                      species_number, group_weight,
+                                      species_number, species_uncertainty, group_weight,
                                       protected_area, protection_distance, degradation_weight, "/rankmap.tif"))
     }
     names(temp_rast) <- paste0(approach,  
-                               species_number, group_weight,
+                               species_number, species_uncertainty, group_weight,
                                protected_area, protection_distance,
                                degradation_weight)
     
     priority_rast <- c(priority_rast, temp_rast)
     
     print(paste0("Priority map of ", paste0(approach,
-                                            species_number, group_weight,
+                                            species_number, species_uncertainty, group_weight,
                                             protected_area, protection_distance, degradation_weight), " added."))
   }, silent = TRUE)}
 }}}}
@@ -92,7 +95,7 @@ m <- matrix(c(
 ), ncol=3, byrow=TRUE)
 
 # maps without protected areas
-for (i in names(priority_rast_c)[names(priority_rast_c) %in% apply(expand.grid("target", species_numbers, group_weights), 1, paste, collapse = "")]) {
+for (i in names(priority_rast_c)[names(priority_rast_c) %in% apply(expand.grid("target", species_numbers, species_uncertainties, group_weights), 1, paste, collapse = "")]) {
   
   priority_rast_c[[i]] <- classify(priority_rast_c[[i]], m)
   
@@ -137,8 +140,8 @@ m_iucnpa <- matrix(c(
 m_iucnpa; percentage_iucnpa
 
 # maps without protected areas
-layer_names <- apply(expand.grid("complement", species_numbers, group_weights, protected_areas, protection_distances), 1, paste, collapse = "")
-layer_names <- c(layer_names, apply(expand.grid("prevent", species_numbers, group_weights, protected_areas, protection_distances, degradation_weights), 1, paste, collapse = ""))
+layer_names <- apply(expand.grid("complement", species_numbers, species_uncertainties, group_weights, protected_areas, protection_distances), 1, paste, collapse = "")
+layer_names <- c(layer_names, apply(expand.grid("prevent", species_numbers, species_uncertainties, group_weights, protected_areas, protection_distances, degradation_weights), 1, paste, collapse = ""))
 for (i in names(priority_rast_c)[names(priority_rast_c) %in% layer_names]) { 
   
   if(str_detect(i, "allPA")){
@@ -247,40 +250,41 @@ for(approach in approaches){
     for(degradation_weight in degradation_weights){ 
       for(protected_area in protected_areas){
         for(species_number in species_numbers){
-          for(group_weight in group_weights) try({
-            
-            temp_curve <- read_delim(paste0(zonation_dir, "/", approach, 
-                                            species_number, group_weight,
-                                            protected_area, protection_distance, degradation_weight, 
-                                            "/subregion_1/summary_curves.csv"))
-            
-            for(temp_class in top_legend$class){
-              if(approach == "target"){
-                temp_thresh <- "m_low"
-              } else {
-                if(protected_area == "_allPA"){
-                  temp_thresh <- "m_pa_low"
-                } else {
-                  temp_thresh <- "m_iucnpa_low"
-                }
-              }
-              #temp_thresh
-              temp_rank <- top_legend[top_legend$class==temp_class, temp_thresh]
-              #temp_rank
-              temp_cover <- max(temp_curve[temp_curve$rank>=temp_rank, "weighted_mean_positive"])
-              #temp_cover
+          for(species_uncertainty in species_uncertainties){
+            for(group_weight in group_weights) try({
               
-              coverage_df <- c(coverage_df, list( data.frame(
-                "scenario" = paste0(approach, species_number, group_weight,
-                                    protected_area, protection_distance, degradation_weight),
-                "class" = temp_class,
-                "rank" = temp_rank,
-                "coverage" = temp_cover
-              )))
-            }
-            
-          }, silent = TRUE)}
-      }}}}
+              temp_curve <- read_delim(paste0(zonation_dir, "/", approach, 
+                                              species_number, species_uncertainty, group_weight,
+                                              protected_area, protection_distance, degradation_weight, 
+                                              "/subregion_1/summary_curves.csv"))
+              
+              for(temp_class in top_legend$class){
+                if(approach == "target"){
+                  temp_thresh <- "m_low"
+                } else {
+                  if(protected_area == "_allPA"){
+                    temp_thresh <- "m_pa_low"
+                  } else {
+                    temp_thresh <- "m_iucnpa_low"
+                  }
+                }
+                #temp_thresh
+                temp_rank <- top_legend[top_legend$class==temp_class, temp_thresh]
+                #temp_rank
+                temp_cover <- max(temp_curve[temp_curve$rank>=temp_rank, "weighted_mean_positive"])
+                #temp_cover
+                
+                coverage_df <- c(coverage_df, list( data.frame(
+                  "scenario" = paste0(approach, species_number, species_uncertainty, group_weight,
+                                      protected_area, protection_distance, degradation_weight),
+                  "class" = temp_class,
+                  "rank" = temp_rank,
+                  "coverage" = temp_cover
+                )))
+              }
+              
+            }, silent = TRUE)}
+      }}}}}
 coverage_df <- do.call(rbind, coverage_df)
 coverage_df
 
@@ -308,7 +312,7 @@ for(temp_class in top_legend$class){
   }
   
   # comparisons
-  comparison_df <- data.frame(base_map = c("target_grW", "target_grW", "target_grW",
+  comparison_df <- data.frame(base_map = c("target_grW", "target_grW", "target_grW", ## ADD UNCERTAINTY
                                            "complement_grW", "complement_grW", 
                                            "complement_grW",
                                            "prevent_grW_maxSubset", "prevent_grW_maxSubset",
@@ -539,6 +543,7 @@ names(complement_sum) <- "complementing"
 names(prevent_sum) <- "prevention"
 
 terra::plot(c(target_sum, complement_sum, prevent_sum), nr=3)
+terra::plot(c(priority_rast_c$target_grW, priority_rast_c$complement_grW, priority_rast_c$prevent_grW_maxSubset), nr=3)
 
 pdf("_figures/Zonation_priorities_sum_top5.pdf")
 terra::plot(priority_rast_c_sum) #top 5%
@@ -550,6 +555,121 @@ terra::plot(rast("_results/Zonation_priorities_sum_top5.tif")) #fliped for hiera
 
 # manually: load to Zonation just like complement_grW analysis
 # output -> performance curve
+
+#- - - - - - - - - - - - - - - - - - - - - -
+### FIGURE 5 in Main text ####
+#- - - - - - - - - - - - - - - - - - - - - -
+priority_rast_c_main <- c(
+  priority_rast_c$target_grW,
+  priority_rast_c$complement_grW,
+  priority_rast_c$prevent_grW_maxSubset)
+names(priority_rast_c_main) <- c("Targeted", "Complementing", "Prevention")
+p_main <- ggplot()+
+  tidyterra::geom_spatraster(data = priority_rast_c_main,
+                             mask_projection=TRUE)+
+  facet_wrap(~lyr, ncol = 1) +
+  scale_x_continuous(expand = c(0,0))+
+  scale_y_continuous(expand = c(0,0))+
+  scale_fill_viridis_d(na.value = "white",
+                       name = "Priority area   ")+
+  theme_bw()+
+  theme(axis.title = element_blank(),
+        axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        panel.border = element_blank(),
+        legend.position = "bottom",
+        strip.text = element_text(size = 15),
+        strip.background = element_blank(),
+        legend.text = element_text(size = 15),
+        legend.title = element_text(size = 25))
+p_main
+ggsave(paste0("_figures/Zonation_priorities_mainScenarios_POR.png"),
+       width = 10, height = 10)
+
+p_stacked <- ggplot()+
+  ggtitle("Saxony-Anhalt")+
+  tidyterra::geom_spatraster(data = sum(priority_rast_c>=3),
+                             mask_projection=TRUE)+
+  scale_x_continuous(expand = c(0,0))+
+  scale_y_continuous(expand = c(0,0))+
+  scale_fill_gradient(na.value = "white",
+                      name = "Scenarios",
+                      low = "#B3E0A6",
+                      high = "#24693D")+
+  theme_bw()+
+  theme(axis.title = element_blank(),
+        axis.text = element_text(size = 15),
+        axis.line = element_line(color = "black"),
+        panel.border = element_blank(),
+        axis.ticks = element_blank(),
+        legend.position = "inside",
+        legend.position.inside = c(0.9, 0.8),
+        plot.title = element_text(size = 25, hjust = 1, face = "bold"),
+        legend.text = element_text(size = 15),
+        legend.title = element_text(size = 25))
+p_stacked
+ggsave(paste0("_figures/Zonation_priorities_scenarioStacked_POR.png"), 
+       p_stacked,
+       width = 10, height = 10)
+
+
+p_target_sum <- ggplot()+
+  ggtitle("Targeted scenarios")+
+  tidyterra::geom_spatraster(data = target_sum,
+                             mask_projection=TRUE)+
+  scale_fill_gradient(na.value = "white",
+                      name = "",
+                      low = "#B3E0A6",
+                      high = "#24693D")+
+  scale_x_continuous(expand = c(0,0))+
+  scale_y_continuous(expand = c(0,0))+
+  theme_bw()+
+  theme(axis.title = element_blank(),
+        axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        panel.border = element_blank(),
+        legend.position = "inside",
+        legend.position.inside = c(0.9, 0.8))
+p_target_sum
+p_complement_sum <- ggplot()+
+  ggtitle("Complementing scenarios")+
+  tidyterra::geom_spatraster(data = complement_sum,
+                             mask_projection=TRUE)+
+  scale_fill_gradient(na.value = "white",
+                      name = "",
+                      low = "#B3E0A6",
+                      high = "#24693D")+
+  scale_x_continuous(expand = c(0,0))+
+  scale_y_continuous(expand = c(0,0))+
+  theme_bw()+
+  theme(axis.title = element_blank(),
+        axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        panel.border = element_blank(),
+        legend.position = "inside",
+        legend.position.inside = c(0.9, 0.8))
+p_prevent_sum <- ggplot()+
+  ggtitle("Prevention scenarios")+
+  tidyterra::geom_spatraster(data = prevent_sum,
+                             mask_projection=TRUE)+
+  scale_fill_gradient(na.value = "white",
+                      name = "",
+                      low = "#B3E0A6",
+                      high = "#24693D")+
+  scale_x_continuous(expand = c(0,0))+
+  scale_y_continuous(expand = c(0,0))+
+  theme_bw()+
+  theme(axis.title = element_blank(),
+        axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        panel.border = element_blank(),
+        legend.position = "inside",
+        legend.position.inside = c(0.9, 0.8))
+
+ggsave(paste0("_figures/Zonation_priorities_scenarioNumber_POR.png"), 
+       (p_target_sum / p_complement_sum / p_prevent_sum),
+       width = 10, height = 10)
+
 
 #- - - - - - - - - - - - - - - - - - - - - -
 ## Performance curves ####
@@ -722,26 +842,27 @@ for(approach in approaches){
     for(degradation_weight in degradation_weights){ 
       for(protected_area in protected_areas){
         for(species_number in species_numbers){
-          for(group_weight in group_weights) try({
-            
-            temp_curve <- read_delim(paste0(zonation_dir, "/",  approach, 
-                                            species_number, group_weight,
+          for(species_uncertainty in species_uncertainties){
+            for(group_weight in group_weights) try({
+              
+              temp_curve <- read_delim(paste0(zonation_dir, "/",  approach, 
+                                              species_number, species_uncertainty, group_weight,
+                                              protected_area, protection_distance, 
+                                              degradation_weight,
+                                              "/subregion_1/summary_curves.csv"))
+              temp_curve$scenario <- paste0(approach, 
+                                            species_number, species_uncertainty, group_weight,
                                             protected_area, protection_distance, 
-                                            degradation_weight,
-                                            "/subregion_1/summary_curves.csv"))
-            temp_curve$scenario <- paste0(approach, 
-                                          species_number, group_weight,
-                                          protected_area, protection_distance, 
-                                          degradation_weight)
-            
-            temp_curve$approach <- approach
-            temp_curve$degradation_weight <- degradation_weight
-            temp_curve$subscenario <- paste0(species_number, group_weight,
-                                             protected_area, protection_distance) 
-            
-            curve_list <- c(curve_list, list(temp_curve))
-          })
-        }}}}}
+                                            degradation_weight)
+              
+              temp_curve$approach <- approach
+              temp_curve$degradation_weight <- degradation_weight
+              temp_curve$subscenario <- paste0(species_number, species_uncertainty, group_weight,
+                                               protected_area, protection_distance) 
+              
+              curve_list <- c(curve_list, list(temp_curve))
+            })
+          }}}}}}
 
 curve_list <- do.call(rbind, curve_list)
 curve_list

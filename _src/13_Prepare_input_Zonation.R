@@ -11,6 +11,7 @@
 gc()
 library(tidyverse)
 library(terra)
+library(tidyterra)
 library(sf)
 
 # define names of taxonomic groups
@@ -104,9 +105,9 @@ write_delim(names_list %>%
               filter(SpeciesID != "Richness") %>%
               mutate("weight" = "1",
                      "group" = wgrp,
-                     "uncertainty" = paste0("../data/", Taxon, "/", ID, "_certainty.tif"),
-                     "filename" = paste0("../data/", Taxon, "/", ID, ".tif")) %>%
-              dplyr::select("weight", "uncertainty", "wgrp","filename", "group"),
+                     "filename" = paste0("../data/", Taxon, "/", ID, ".tif"),
+                     "condition" = as.numeric(as.factor(ID))) %>%
+              dplyr::select("condition", "weight", "wgrp","filename", "group"),
             paste0("_results/Zonation/features.txt"))
 
 write_delim(names_list %>%
@@ -114,9 +115,9 @@ write_delim(names_list %>%
               filter(str_detect(ID, "10_")) %>%
               mutate("weight" = "1",
                      "group" = wgrp,
-                     "uncertainty" = paste0("../data/", Taxon, "/", ID, "_certainty.tif"),
-                     "filename" = paste0("../data/", Taxon, "/", ID, ".tif")) %>%
-              dplyr::select("weight", "uncertainty", "wgrp","filename", "group"),
+                     "filename" = paste0("../data/", Taxon, "/", ID, ".tif"),
+                     "condition" = as.numeric(as.factor(ID))) %>%
+              dplyr::select("condition", "weight", "wgrp","filename", "group"),
             paste0("_results/Zonation/features_10.txt"))
 
 write_delim(names_list %>%
@@ -124,10 +125,40 @@ write_delim(names_list %>%
               filter(str_detect(ID, "100_")) %>%
               mutate("weight" = "1",
                      "group" = wgrp,
-                     "uncertainty" = paste0("../data/", Taxon, "/", ID, "_certainty.tif"),
-                     "filename" = paste0("../data/", Taxon, "/", ID, ".tif")) %>%
-              dplyr::select("weight", "uncertainty", "wgrp","filename", "group"),
+                     "filename" = paste0("../data/", Taxon, "/", ID, ".tif"),
+                     "condition" = as.numeric(as.factor(ID))) %>%
+              dplyr::select("condition", "weight", "wgrp","filename", "group"),
             paste0("_results/Zonation/features_100.txt"))
+
+## Conditional layers: uncertainty
+write_delim(names_list %>%
+              filter(SpeciesID != "Richness") %>%
+              mutate("condition" = as.numeric(as.factor(ID)),
+                     "renorm" = 0,
+                     "uncertainty" = paste0("../data/", Taxon, "/", ID, "_certainty.tif")) %>%
+              dplyr::select("condition", "renorm", "uncertainty"),
+            paste0("_results/Zonation/certainty.txt"),
+            col_names = FALSE)
+
+write_delim(names_list %>%
+              filter(SpeciesID != "Richness") %>%
+              filter(str_detect(ID, "10_")) %>%
+              mutate("condition" = as.numeric(as.factor(ID)),
+                     "renorm" = 0,
+                     "uncertainty" = paste0("../data/", Taxon, "/", ID, "_certainty.tif")) %>%
+              dplyr::select("condition", "renorm", "uncertainty"),
+            paste0("_results/Zonation/certainty_10.txt"),
+            col_names = FALSE)
+
+write_delim(names_list %>%
+              filter(SpeciesID != "Richness") %>%
+              filter(str_detect(ID, "100_")) %>%
+              mutate("condition" = as.numeric(as.factor(ID)),
+                     "renorm" = 0,
+                     "uncertainty" = paste0("../data/", Taxon, "/", ID, "_certainty.tif")) %>%
+              dplyr::select("condition", "renorm", "uncertainty"),
+            paste0("_results/Zonation/certainty_100.txt"),
+            col_names = FALSE)
 
 # specify group weights to weight all taxa equally across groups
 names_list <- read_csv(paste0("_results/Zonation/TaxaNames_legend.csv"))
@@ -365,6 +396,27 @@ degr_drivers$invasion <- 2 * degr_drivers$invasion
 degr_drivers$lu_instability <- 1 * degr_drivers$lu_instability
 degr_drivers$salinization <- 2 * degr_drivers$salinization
 
+degr_text <- data.frame(
+  lyr = names(degr_drivers),
+  label   = c(paste0("min: ", 
+                     global(degr_drivers, min, na.rm=TRUE)$min, 
+                     "\nmax: ", 
+                     global(degr_drivers, max, na.rm=TRUE)$max))
+)
+degr_text
+ggplot()+
+  tidyterra::geom_spatraster(data = as.factor(degr_drivers),
+                             mask_projection=TRUE)+
+  geom_text(data = degr_text, aes(x = -8.6, y = 40.8, 
+                                  label = label), hjust = 1)+
+  facet_wrap(~lyr, ncol = 3) +
+  scale_x_continuous(expand = c(0,0))+
+  scale_y_continuous(expand = c(0,0))+
+  scale_fill_viridis_d(na.value = "white")+
+  theme_bw()
+ggsave(paste0("_figures/Degradation_drivers_POR.png"), 
+       width = 10, height = 10)
+
 degr_drivers_sum <- sum(degr_drivers, na.rm = TRUE)
 terra::plot(degr_drivers_sum)
 
@@ -391,8 +443,33 @@ terra::plot(degr_drivers_subset_sum)
 #degr_drivers_subset_sum[is.na(degr_drivers_subset_sum)] <- 0
 terra::writeRaster(degr_drivers_subset_sum, file = "_results/Zonation/Degradation_sumSubset.tif", overwrite = TRUE)
 
-terra::plot(c(degr_drivers_sum, degr_drivers_max, degr_drivers_subset_max), nc=3)
+#terra::plot(c(degr_drivers_sum, degr_drivers_max, degr_drivers_subset_max), nc=3)
 
+degr_drivers_all <- c(degr_drivers_sum, degr_drivers_max, degr_drivers_subset_max)
+#degr_drivers_all[degr_drivers_all==0] <- NA
+
+degr_all_text <- data.frame(
+  lyr = names(degr_drivers_all),
+  label   = c(paste0("min: ", 
+                     global(degr_drivers_all, min, na.rm=TRUE)$min, 
+                     "\nmax: ", 
+                     global(degr_drivers_all, max, na.rm=TRUE)$max))
+)
+degr_all_text
+
+library(tidyterra)
+ggplot()+
+  tidyterra::geom_spatraster(data = as.factor(degr_drivers_all),
+                             mask_projection=TRUE)+
+  geom_text(data = degr_all_text, aes(x = 12.95, y = 52.8, 
+                                      label = label), hjust = 1)+
+  facet_wrap(~lyr, ncol = 3) +
+  scale_x_continuous(expand = c(0,0))+
+  scale_y_continuous(expand = c(0,0))+
+  scale_fill_viridis_d(na.value = "white")+
+  theme_bw()
+ggsave(paste0("_figures/Degradation_drivers_summed_", nuts, ".png"), 
+       width = 10, height = 10)
 
 # # save layers for Zonation
 # for(ly in names(degr_drivers)){
@@ -419,13 +496,14 @@ zonation_dir <- "D:/EIE_Macroecology/_students/Romy/SoilBioPrio_Zonation/POR"
 
 approaches <- c("target", "complement", "prevent")
 species_numbers <- c("", "_10", "_100")
+species_uncertainties <- c("", "_noCert")
 group_weights <- c("", "_grW")
 protected_areas <- c("", "_allPA")
 degradation_weights <- c("_max", "_maxSubset")
 
 zonation_scenarios <- c(
   apply(expand.grid(
-  approaches[1], species_numbers, group_weights), 1, paste, collapse = ""),
+  approaches[1], species_numbers, species_uncertainties, group_weights), 1, paste, collapse = ""),
   apply(expand.grid(
     approaches[2], species_numbers, group_weights, protected_areas), 1, paste, collapse = ""), #c("", "_dist") = distance of PAs considering for expanding
   apply(expand.grid(
@@ -455,6 +533,11 @@ for(zonation_scenario in zonation_scenarios){
       if(str_detect(zonation_scenario, "grW")) cat(paste0("weight groups file = group_weights.txt"), "\n")
     }
     cat("zero mode = \"all\"", "\n")
+    
+    if(!(str_detect(zonation_scenario, "_noCert"))){
+      cat(paste0("condition link file = certainty.txt"), "\n")
+    }
+    
     if(approach != approaches[1]){
       if(str_detect(zonation_scenario, "allPA")) { 
          cat("hierarchic mask layer = ../data/POR_PA.tif", "\n")
@@ -499,6 +582,9 @@ for(zonation_scenario in zonation_scenarios){
       if(str_detect(zonation_scenario, "grW")) 
         file.copy(paste0("_results/Zonation/group_weights_100.txt"),
                   paste0(zonation_dir, "/", zonation_scenario, "/group_weights_100.txt"))
+      if(!str_detect(zonation_scenario, "_noCert"))
+        file.copy(paste0("_results/Zonation/certainty.txt"),
+                  paste0(zonation_dir, "/", zonation_scenario, "/certainty.txt"))
       
     } else {
       file.copy(paste0("_results/Zonation/features_10.txt"),
@@ -506,6 +592,9 @@ for(zonation_scenario in zonation_scenarios){
       if(str_detect(zonation_scenario, "grW")) 
         file.copy(paste0("_results/Zonation/group_weights_10.txt"),
                   paste0(zonation_dir, "/", zonation_scenario, "/group_weights_10.txt"))
+      if(!str_detect(zonation_scenario, "_noCert"))
+        file.copy(paste0("_results/Zonation/certainty.txt"),
+                  paste0(zonation_dir, "/", zonation_scenario, "/certainty.txt"))
     }
     
   } else {
@@ -514,6 +603,9 @@ for(zonation_scenario in zonation_scenarios){
     if(str_detect(zonation_scenario, "grW")) 
       file.copy(paste0("_results/Zonation/group_weights.txt"),
                 paste0(zonation_dir, "/", zonation_scenario, "/group_weights.txt"))
+    if(!str_detect(zonation_scenario, "_noCert"))
+      file.copy(paste0("_results/Zonation/certainty.txt"),
+                paste0(zonation_dir, "/", zonation_scenario, "/certainty.txt"))
   }
   
   print(list.files(paste0(zonation_dir, "/", zonation_scenario)))
@@ -526,6 +618,7 @@ for(zonation_scenario in zonation_scenarios){
 # "-wWga" #with group weights and with area analysis
 # "-wWgxXa" #with group weights and cost layer and cost prio and area analysis
 # "-wWxXha" #same plus hierarchical mask, and without groups
+# "-ca" #area analysis and condition layer
 
 # example call:
 #"C:/Program Files/Zonation5/z5w.exe" --mode=CAZ2 -wWga --area=1 D:/EIE_Macroecology/_students/Romy/SoilBioPrio_Zonation/POR/targeted_groupWeights/settings_targeted.z5 D:/EIE_Macroecology/_students/Romy/SoilBioPrio_Zonation/POR/targeted_groupWeights 
@@ -543,6 +636,7 @@ for (zonation_scenario in zonation_scenarios) {
 
   # construct Zonation call
   temp_options <- "-w"
+  if(!str_detect(zonation_scenario, "_noCert")) temp_options <- paste0(temp_options, "c")
   if(str_detect(zonation_scenario, "_grW")) temp_options <- paste0(temp_options, "W")
   temp_options <- paste0(temp_options, "g")
   if(str_detect(zonation_scenario, "prevent")) temp_options <- paste0(temp_options, "xX")
