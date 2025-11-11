@@ -407,7 +407,8 @@ degr_text
 ggplot()+
   tidyterra::geom_spatraster(data = as.factor(degr_drivers),
                              mask_projection=TRUE)+
-  geom_text(data = degr_text, aes(x = -8.6, y = 40.8, 
+  xlab("")+ylab("")+
+  geom_text(data = degr_text, aes(x = -6.3, y = 40.8, 
                                   label = label), hjust = 1)+
   facet_wrap(~lyr, ncol = 3) +
   scale_x_continuous(expand = c(0,0))+
@@ -433,6 +434,7 @@ terra::writeRaster(degr_drivers_max/3, file = "_results/Zonation/Degradation_max
 
 degr_drivers_subset <- terra::subset(degr_drivers, c("erosion", "compaction", "salinization"))
 degr_drivers_subset_max <- max(degr_drivers_subset, na.rm = TRUE)
+names(degr_drivers_subset_max) <- "maxSubset"
 terra::plot(degr_drivers_subset_max)
 #degr_drivers_subset_max[is.na(degr_drivers_subset_max)] <- 0
 
@@ -457,18 +459,18 @@ degr_all_text <- data.frame(
 )
 degr_all_text
 
-library(tidyterra)
 ggplot()+
   tidyterra::geom_spatraster(data = as.factor(degr_drivers_all),
                              mask_projection=TRUE)+
-  geom_text(data = degr_all_text, aes(x = 12.95, y = 52.8, 
+  xlab("")+ylab("")+
+  geom_text(data = degr_all_text, aes(x = -6.3, y = 40.8, 
                                       label = label), hjust = 1)+
   facet_wrap(~lyr, ncol = 3) +
   scale_x_continuous(expand = c(0,0))+
   scale_y_continuous(expand = c(0,0))+
   scale_fill_viridis_d(na.value = "white")+
   theme_bw()
-ggsave(paste0("_figures/Degradation_drivers_summed_", nuts, ".png"), 
+ggsave(paste0("_figures/Degradation_drivers_summed_POR.png"), 
        width = 10, height = 10)
 
 # # save layers for Zonation
@@ -662,7 +664,7 @@ for (zonation_scenario in zonation_scenarios) {
 sink()  # very important to close the sink!
 cat("Commands written to:", script_output, "\n")
 
-
+# now this one can be run in the cmd
 
 
 #- - - - - - - - - - - - - - - - - - - - - -

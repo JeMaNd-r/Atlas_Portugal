@@ -77,8 +77,8 @@ env_por <- terra::rast( "_intermediates/EnvPredictor_1km_POR_normalized.tif")
 #priority_rast <- terra::crop(priority_rast, env_por[[1]])
 priority_rast <- terra::mask(priority_rast, env_por[[1]])
 
-terra::plot(priority_rast, nly=30)
-terra::plot(terra::diff(priority_rast))
+#terra::plot(priority_rast, nly=30)
+#terra::plot(terra::diff(priority_rast))
 
 #- - - - - - - - - - - - - - - - - - - - - -#
 ## Classify top areas ####
@@ -159,7 +159,7 @@ for (i in names(priority_rast_c)[names(priority_rast_c) %in% layer_names]) {
 }
 
 terra::plot(priority_rast_c)
-terra::plot(terra::diff(priority_rast>=0.95)) #note: only diff to layer before
+#terra::plot(terra::diff(priority_rast>=0.95)) #note: only diff to layer before
 
 # save priority maps
 terra::writeRaster(priority_rast, "_results/_Maps/Zonation_priorities_raw.tif", overwrite=TRUE)
@@ -167,7 +167,7 @@ terra::writeRaster(priority_rast_c, "_results/_Maps/Zonation_priorities.tif", ov
 
 # plot classified priorities (top 30, 5 etc. %)
 pdf("_figures/Zonation_priorities.pdf")
-terra::plot(priority_rast_c, maxnl=50)
+terra::plot(priority_rast_c, maxnl=60)
 dev.off()
 
 # # plot difference between top 5% areas
@@ -312,19 +312,19 @@ for(temp_class in top_legend$class){
   }
   
   # comparisons
-  comparison_df <- data.frame(base_map = c("target_grW", "target_grW", "target_grW", ## ADD UNCERTAINTY
+  comparison_df <- data.frame(base_map = c("target_grW", "target_grW", "target_grW", "target_grW", ## ADD UNCERTAINTY
                                            "complement_grW", "complement_grW", 
                                            "complement_grW",
                                            "prevent_grW_maxSubset", "prevent_grW_maxSubset",
                                            "prevent_grW_maxSubset",
                                            "target_grW", "target_grW", "complement_grW"),
-                              compare_map = c("target", "target_10_grW", "target_100_grW",
+                              compare_map = c("target", "target_10_grW", "target_100_grW", "target_noCert_grW",
                                               "complement", "complement_grW_allPA",
                                               "complement_100_grW",
                                               "prevent_maxSubset", "prevent_grW_max",
                                               "prevent_grW_allPA_maxSubset",
                                               "complement_grW", "prevent_grW_maxSubset", "prevent_grW_maxSubset"),
-                              name_diff = c("Group weights (t)", "ESM taxa (t)", "SDM taxa (t)",
+                              name_diff = c("Group weights (t)", "ESM taxa (t)", "SDM taxa (t)", "Uncertainty (t)",
                                             "Group weights (c)", "Protected areas (c)", 
                                             "SDM taxa (c)",
                                             "Group weights (p)", "Driver subset (p)",
@@ -381,8 +381,8 @@ comparison_rast <- lapply(names(comparison_rast_list), function(nm) {
   r
 }) |> rast()
 
-terra::plot(comparison_rast)
-terra::writeRaster(comparison_rast, "_results/Zonation_comparisons.tif")
+#terra::plot(comparison_rast)
+terra::writeRaster(comparison_rast, "_results/Zonation_comparisons.tif", overwrite = TRUE)
 
 ## check out
 comparison_df <- read_csv("_results/Zonation_comparisons.csv")
@@ -444,6 +444,19 @@ terra::plot(terra::subset(comparison_rast, str_detect(names(comparison_rast), "G
 terra::plot(c(priority_rast_c$target_grW,
               priority_rast_c$target,
               terra::subset(comparison_rast, str_detect(names(comparison_rast), "^30[%] Group weights [(]t[)]"))), 
+            maxnl = 50, nc = 3)
+
+# uncertainty included
+comparison_df %>% dplyr::filter(base_map == "target_grW" &
+                                  compare_map == "target_noCert_grW")
+coverage_df_sum %>% dplyr::filter(scenario == "target_grW" | 
+                                    scenario == "target_noCert_grW")
+
+terra::plot(terra::subset(comparison_rast, str_detect(names(comparison_rast), "Uncertainty [(]t[)]")))
+
+terra::plot(c(priority_rast_c$target_grW,
+              priority_rast_c$target_noCert_grW,
+              terra::subset(comparison_rast, str_detect(names(comparison_rast), "^10[%] Uncertainty [(]t[)]"))), 
             maxnl = 50, nc = 3)
 
 
@@ -587,7 +600,7 @@ ggsave(paste0("_figures/Zonation_priorities_mainScenarios_POR.png"),
        width = 10, height = 10)
 
 p_stacked <- ggplot()+
-  ggtitle("Saxony-Anhalt")+
+  ggtitle("Northern Portugal")+
   tidyterra::geom_spatraster(data = sum(priority_rast_c>=3),
                              mask_projection=TRUE)+
   scale_x_continuous(expand = c(0,0))+
@@ -603,7 +616,7 @@ p_stacked <- ggplot()+
         panel.border = element_blank(),
         axis.ticks = element_blank(),
         legend.position = "inside",
-        legend.position.inside = c(0.9, 0.8),
+        legend.position.inside = c(0.9, 0.15),
         plot.title = element_text(size = 25, hjust = 1, face = "bold"),
         legend.text = element_text(size = 15),
         legend.title = element_text(size = 25))
@@ -628,8 +641,7 @@ p_target_sum <- ggplot()+
         axis.text = element_blank(),
         axis.ticks = element_blank(),
         panel.border = element_blank(),
-        legend.position = "inside",
-        legend.position.inside = c(0.9, 0.8))
+        legend.position = "right")
 p_target_sum
 p_complement_sum <- ggplot()+
   ggtitle("Complementing scenarios")+
@@ -646,8 +658,7 @@ p_complement_sum <- ggplot()+
         axis.text = element_blank(),
         axis.ticks = element_blank(),
         panel.border = element_blank(),
-        legend.position = "inside",
-        legend.position.inside = c(0.9, 0.8))
+        legend.position = "right")
 p_prevent_sum <- ggplot()+
   ggtitle("Prevention scenarios")+
   tidyterra::geom_spatraster(data = prevent_sum,
@@ -663,8 +674,7 @@ p_prevent_sum <- ggplot()+
         axis.text = element_blank(),
         axis.ticks = element_blank(),
         panel.border = element_blank(),
-        legend.position = "inside",
-        legend.position.inside = c(0.9, 0.8))
+        legend.position = "right")
 
 ggsave(paste0("_figures/Zonation_priorities_scenarioNumber_POR.png"), 
        (p_target_sum / p_complement_sum / p_prevent_sum),
@@ -740,6 +750,8 @@ ggsave("_figures/Zonation_performance.png", height = 5, width = 5)
 # more performance curves
 curve_target_noGrW <- read_delim(paste0(zonation_dir, "/", "target",
                                         "/subregion_1/summary_curves.csv"))
+curve_target_noCert <- read_delim(paste0(zonation_dir, "/", "target_noCert_grW",
+                                        "/subregion_1/summary_curves.csv"))
 curve_target_10 <- read_delim(paste0(zonation_dir, "/", "target_10_grW",
                                         "/subregion_1/summary_curves.csv"))
 curve_target_100 <- read_delim(paste0(zonation_dir, "/", "target_100_grW",
@@ -750,6 +762,7 @@ curve_prevent_allD <- read_delim(paste0(zonation_dir, "/", "prevent_grW_max",
                                       "/subregion_1/summary_curves.csv"))
 
 ggplot()+
+  geom_abline(aes(slope = -1, intercept = 1), color = "grey80")+
   geom_line(data = curve_preventAll, aes(x = rank, y = weighted_mean_positive,
                                          color = "prevention (all PAs)",
                                          lty = "prevention (all PAs)",
@@ -763,7 +776,11 @@ ggplot()+
                                             color = "complementing (all PAs)",
                                             lty = "complementing (all PAs)",
                                             lwd = "complementing (all PAs)"))+
-
+  
+  geom_line(data = curve_target_noCert, aes(x = rank, y = weighted_mean_positive, 
+                                           color = "targeted (no uncertainty)", 
+                                           lty = "targeted (no uncertainty)",
+                                           lwd = "targeted (no uncertainty)"))+
   geom_line(data = curve_target_noGrW, aes(x = rank, y = weighted_mean_positive, 
                                            color = "targeted (no group weight)", 
                                            lty = "targeted (no group weight)",
@@ -780,7 +797,7 @@ ggplot()+
   geom_line(data = curve_target, aes(x = rank, y = weighted_mean_positive, 
                                      color = "targeted", lty = "targeted",
                                      lwd = "targeted"))+
-   geom_line(data = curve_prevent, aes(x = rank, y = weighted_mean_positive,
+  geom_line(data = curve_prevent, aes(x = rank, y = weighted_mean_positive,
                                       color = "prevention",
                                       lty = "prevention",
                                       lwd = "prevention"))+
@@ -792,6 +809,7 @@ ggplot()+
   ylab("Weighted mean coverage of features")+
   scale_color_manual(values = c("targeted" = "#E18616",
                                 "targeted (no group weight)" = "#E18616",
+                                "targeted (no uncertainty)" = "#E18616",
                                 "targeted (SDMs)" = "#E18616",
                                 "targeted (ESMs)" = "#E18616",
                                 "complementing" = "#059041",
@@ -802,6 +820,7 @@ ggplot()+
                      name = "Approach")+
   scale_linetype_manual(values = c("targeted" = "solid",
                                    "targeted (no group weight)" = "twodash",
+                                   "targeted (no uncertainty)" = "longdash",
                                    "targeted (SDMs)" = "dotted",
                                    "targeted (ESMs)" = "dotdash",
                                    "complementing" = "solid",
@@ -812,6 +831,7 @@ ggplot()+
                         name = "Approach")+
   scale_linewidth_manual(values = c("targeted" = 1.5,
                                    "targeted (no group weight)" = 1,
+                                   "targeted (no uncertainty)" = 0.8,
                                    "targeted (SDMs)" = 1,
                                    "targeted (ESMs)" = 1,
                                    "complementing" = 1.5,
@@ -822,17 +842,19 @@ ggplot()+
                         name = "Approach")+
   scale_x_continuous(limits = c(0,1), expand = c(0,0))+
   scale_y_continuous(limits = c(0,1), expand = c(0,0))+
+  coord_fixed()+
   theme_bw()+
   theme(panel.border = element_blank(),
         panel.grid.minor = element_blank(),
-        legend.position = "inside",
-        legend.background = element_rect(color = "black"),
-        legend.position.inside = c(0.25, 0.3),
-        axis.title = element_text(size = 15),
-        axis.text = element_text(size = 9),
-        legend.text = element_text(size = 9),
-        legend.title = element_text(size = 15))
-ggsave("_figures/Zonation_performance_Appendix.png", height = 6, width = 6)
+        legend.position = "right",
+        #legend.background = element_rect(color = "black"),
+        #legend.position.inside = c(0.8, 0.72),
+        axis.title = element_text(size = 20),
+        axis.ticks = element_blank(),
+        axis.text = element_text(size = 15),
+        legend.text = element_text(size = 15),
+        legend.title = element_text(size = 20))
+ggsave("_figures/Zonation_performance_Appendix.png", height = 6, width = 9)
 
 #- - - - - - - - - - - - - - - - - - - - - -
 ### All curves all-together ####
@@ -857,7 +879,8 @@ for(approach in approaches){
               
               temp_curve$approach <- approach
               temp_curve$degradation_weight <- degradation_weight
-              temp_curve$subscenario <- paste0(species_number, species_uncertainty, group_weight,
+              temp_curve$group_weight <- group_weight
+              temp_curve$subscenario <- paste0(species_number, species_uncertainty,
                                                protected_area, protection_distance) 
               
               curve_list <- c(curve_list, list(temp_curve))
@@ -871,7 +894,7 @@ ggplot(data = curve_list,
        aes(x = rank, y = weighted_mean_positive, color = subscenario))+
   geom_line(lwd = 0.1)+
   
-  facet_wrap(vars(approach, degradation_weight))+
+  facet_wrap(vars(approach, degradation_weight, group_weight))+
   ylab("Weighted mean coverage of features")+
   scale_x_continuous(limits = c(0,1), expand = c(0,0))+
   scale_y_continuous(limits = c(0,1), expand = c(0,0))+
@@ -910,9 +933,36 @@ richness <- do.call(c, richness)
 terra::plot(richness)
 terra::writeRaster(richness, "_results/_Maps/Richness_allTaxa_features.tif", overwrite=TRUE)
 
-pdf("_figures/Richness_allTaxa_features.pdf")
-terra::plot(richness)
-dev.off()
+p_richness <- richness
+p_richness[p_richness==0] <- NA
+
+# create a plot for each layer
+plots <- map(names(p_richness), ~ {
+  ggplot() +
+    ggtitle(.x)+
+    geom_spatraster(data = p_richness[[.x]], mask_projection = TRUE) +
+    scale_x_continuous(expand = c(0,0)) +
+    scale_y_continuous(expand = c(0,0)) +
+    scale_fill_viridis_c(na.value = "white", name = "", option = "B") +
+    theme_bw() +
+    theme(axis.title = element_blank(),
+          axis.text = element_blank(),
+          axis.ticks = element_blank(),
+          panel.border = element_blank(),
+          strip.text = element_text(size = 15),
+          strip.background = element_blank(),
+          legend.text = element_text(size = 15),
+          title = element_text(size = 25))
+})
+
+# arrange plots
+wrap_plots(plots, ncol = 3)
+ggsave("_figures/Richness_allTaxa_features.png",
+       height = 20, width = 20)
+
+# pdf("_figures/Richness_allTaxa_features.pdf")
+# terra::plot(richness)
+# dev.off()
 
 # ESM species
 richness_10 <- lapply(unique(features_10$group), function(x){
@@ -923,13 +973,38 @@ richness_10 <- lapply(unique(features_10$group), function(x){
   temp_rast
 })
 richness_10 <- do.call(c, richness_10)
-
-terra::plot(richness_10)
 terra::writeRaster(richness_10, "_results/_Maps/Richness_allTaxa_features_10.tif", overwrite=TRUE)
 
-pdf("_figures/Richness_allTaxa_features_10.pdf")
-terra::plot(richness_10)
-dev.off()
+p_richness_10 <- richness_10
+p_richness_10[p_richness_10==0] <- NA
+
+# create a plot for each layer
+plots_10 <- map(names(p_richness_10), ~ {
+  ggplot() +
+    ggtitle(.x)+
+    geom_spatraster(data = p_richness_10[[.x]], mask_projection = TRUE) +
+    scale_x_continuous(expand = c(0,0)) +
+    scale_y_continuous(expand = c(0,0)) +
+    scale_fill_viridis_c(na.value = "white", name = "", option = "B") +
+    theme_bw() +
+    theme(axis.title = element_blank(),
+          axis.text = element_blank(),
+          axis.ticks = element_blank(),
+          panel.border = element_blank(),
+          strip.text = element_text(size = 15),
+          strip.background = element_blank(),
+          legend.text = element_text(size = 15),
+          title = element_text(size = 25))
+})
+
+# arrange plots
+wrap_plots(plots_10, ncol = 3)
+ggsave("_figures/Richness_allTaxa_features_10.png",
+       height = 20, width = 20)
+
+# pdf("_figures/Richness_allTaxa_features_10.pdf")
+# terra::plot(richness_10)
+# dev.off()
 
 # SDM species
 richness_100 <- lapply(unique(features_100$group), function(x){
@@ -940,11 +1015,36 @@ richness_100 <- lapply(unique(features_100$group), function(x){
   temp_rast
 })
 richness_100 <- do.call(c, richness_100)
-
-terra::plot(richness_100)
 terra::writeRaster(richness_100, "_results/_Maps/Richness_allTaxa_features_100.tif", overwrite=TRUE)
 
-pdf("_figures/Richness_allTaxa_features_100.pdf")
-terra::plot(richness_100)
-dev.off()
+p_richness_100 <- richness_100
+p_richness_100[p_richness_100==0] <- NA
+
+# create a plot for each layer
+plots_100 <- map(names(p_richness_100), ~ {
+  ggplot() +
+    ggtitle(.x)+
+    geom_spatraster(data = p_richness_100[[.x]], mask_projection = TRUE) +
+    scale_x_continuous(expand = c(0,0)) +
+    scale_y_continuous(expand = c(0,0)) +
+    scale_fill_viridis_c(na.value = "white", name = "", option = "B") +
+    theme_bw() +
+    theme(axis.title = element_blank(),
+          axis.text = element_blank(),
+          axis.ticks = element_blank(),
+          panel.border = element_blank(),
+          strip.text = element_text(size = 15),
+          strip.background = element_blank(),
+          legend.text = element_text(size = 15),
+          title = element_text(size = 25))
+})
+
+# arrange plots
+wrap_plots(plots_100, ncol = 3)
+ggsave("_figures/Richness_allTaxa_features_100.png",
+       height = 20, width = 20)
+
+# pdf("_figures/Richness_allTaxa_features_100.pdf")
+# terra::plot(richness_100)
+# dev.off()
 
