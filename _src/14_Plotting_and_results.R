@@ -557,7 +557,8 @@ var_imp <- var_imp %>%
 # add category for clay.silt
 var_imp[var_imp$Predictor=="Clay.Silt","Category"] <- "Soil"
 
-write_csv(var_imp, paste0("_figures/VariableImportance_MaxEnt_top10_allTaxa.pdf"))
+write_csv(var_imp, paste0("_figures/VariableImportance_MaxEnt_top10_allTaxa.csv"))
+var_imp <- read_csv(paste0("_figures/VariableImportance_MaxEnt_top10_allTaxa.csv"))
 
 # summarize mean & SD
 # View(var_imp %>% 
@@ -573,15 +574,18 @@ ggplot()+
   #              geom = "errorbar", fun.min = mean, fun = mean, fun.max = mean, width = .75, linetype="dashed")+
   xlab("Variable importance (Permutation importance)")+
   ylab("Predictor")+
+  scale_x_continuous(expand = c(0,0))+
   facet_wrap(vars(Taxon))+
   theme_bw()+
   theme(axis.text = element_text(size=12), 
         axis.title = element_text(size=20), axis.title.y=element_blank(),
         strip.text = element_text(size = 20),
         legend.text = element_text(size=12), legend.title = element_blank(), 
+        panel.grid.major.y = element_blank(),
+        axis.ticks.y = element_blank(),
         legend.position = "inside",
         legend.position.inside = c(0.555,0.635))
-ggsave(paste0("_figures/VariableImportance_MaxEnt_top10_allTaxa.pdf"), 
+ggsave(paste0("_figures/VariableImportance_MaxEnt_top10_allTaxa.png"), 
        last_plot(),
        height = 7, width = 9)
 
@@ -1140,12 +1144,14 @@ ggplot()+
   geom_boxplot(data = data_eval, aes(x=MaxTSS, y = Taxon, fill = "TSS"), alpha = 0.2, outlier.alpha = 1, outlier.shape = 17, outliers = TRUE, staplewidth = 0.2)+
   geom_jitter(data = data_eval, aes(x=MaxTSS, y = Taxon, color = "TSS"), height = 0.2, alpha = 0.5)+
   facet_grid(vars(Model))+
-  xlim(0,1)+
+  xlab("")+ylab("")+
+  scale_x_continuous(expand=c(0,0), limits = c(0,1))+
   #coord_flip()+
   theme_bw()+
-  theme(panel.grid.major.y = element_blank())
-ggsave(paste0("_figures/Model_performance_allTaxa_boxplot.pdf"),
-       height = 4, width = 2)
+  theme(panel.grid.major.y = element_blank(),
+        text = element_text(size = 15))
+ggsave(paste0("_figures/Model_performance_allTaxa_boxplot.png"),
+       height = 5, width = 8)
 
 data_eval %>% group_by(Model) %>% count()
 data_eval %>% filter(AUC>=0.7) %>% 
