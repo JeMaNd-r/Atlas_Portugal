@@ -6,7 +6,8 @@ The following code used occurrence data and environmental variables to predict S
 
 ## Description
 
-We focus on sufficiently recorded taxa only, that is on taxa with an appropriate number of occurrence records in Northern Portugal (min. 10 records). First, we map the spatial distribution of all taxa and the respective total taxon richness per organism group. We use multiple environmental predictors spanning climatic, edaphic, and topological factors. In accordance with the literature, we predicted potential species distributions by well-performing models (i.e., MaxEnt and Ensemble modeling). Second, we investigate how well the different types of protected areas cover mean and individual species ranges by estimating the respective proportion of range area. Based on the protection coverage, we are able to identify vulnerable species, that is species whose ranges only sparsely overlap with current protected areas. 
+We focus on sufficiently recorded taxa only, that is on taxa with an appropriate number of occurrence records in Northern Portugal (min. 10 records). First, we map the spatial distribution of all taxa and the respective total taxon richness per organism group. We use multiple environmental predictors spanning climatic, edaphic, and topological factors. In accordance with the literature, we predicted potential species distributions by well-performing models (i.e., MaxEnt and Ensemble modeling). Second, we investigate where future nature conservation areas targeting soil biodiversity could be established by running prioritization analyses in Zonation.
+
 
 ## Table of Contents
 - [Getting Started](#Getting-Started)
