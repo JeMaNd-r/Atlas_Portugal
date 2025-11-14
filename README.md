@@ -1,2 +1,331 @@
 # Atlas-Portugal
- Atlas of soil biodiversity in North-Portugal
+Priorities for nature conservation of soil biodiversity in Northern Portugal
+
+The following code used occurrence data and environmental variables to predict Species Distribution Models (SDMs) for soil organisms across Northern Portugal. In addition, it prepares for and summarizes output from prioritization analysis using the software Zonation.
+
+
+## Description
+
+We focus on sufficiently recorded taxa only, that is on taxa with an appropriate number of occurrence records in Northern Portugal (min. 10 records). First, we map the spatial distribution of all taxa and the respective total taxon richness per organism group. We use multiple environmental predictors spanning climatic, edaphic, and topological factors. In accordance with the literature, we predicted potential species distributions by well-performing models (i.e., MaxEnt and Ensemble modeling). Second, we investigate how well the different types of protected areas cover mean and individual species ranges by estimating the respective proportion of range area. Based on the protection coverage, we are able to identify vulnerable species, that is species whose ranges only sparsely overlap with current protected areas. 
+
+## Table of Contents
+- [Getting Started](#Getting-Started)
+  - [Dependencies](#Dependencies)
+  - [Installing](#Installing)
+  - [Executing program](#Executing-program)
+- [Help](#Help)
+- [Authors](#Authors)
+- [License](#License)
+- [Acknowledgments](#Acknowledgments)
+- [Use of ChatGPT](#use-of-chatgpt-in-project-development)
+- [References](#References)
+- [Folder structure](#Folder-structure)
+  - [CODE repository](#CODE-repository)
+      - [Documents](#_doc)
+      - [Scripts](#_src)
+  - [DATA repository](#DATA-repository)
+    - [Raw data](#_data)
+    - [Intermediate results](#_intermediates)
+    - [Results](#_results)
+
+
+## Getting Started
+
+### Dependencies
+
+* Windows 10
+* R version 4.3.0
+* RStudio version RStudio 2023.06.0
+
+
+
+### Installing
+
+* Code is available at GitHub.
+* Data can be downloaded according to Zeiss et al. 2023 and Zeiss et al. (in Prep.).
+
+Folder structure should be maintained. Additionally, please download maxent.jar according to description from dismo package. Working directory during analysis should be the main folder. This is necessary to access all data files that will be called with `here::here()`. You may need to start a new RStudio session in order to fix the here::here() starting directory.
+
+
+### Executing program
+
+* Open the R scripts following the numbering.
+* To perform Species Distribution Models (SDMs), you need to create the raster stack(s) of environmental variables (*EnvPredictor_2km...*) in the *results* subfolder. Please check Zeiss et al. 2023 for more information.
+
+Note: The R script "04b_Identify_topPredictors.R" might only run in R but not in RStudio.
+
+For each organism group, there is one script to merge occurrence records from different sources. In case you want to add datasets or taxonomic groups, make sure to adapt this code accordingly. The remaining scripts do not require manual checking, although it is recommended to do so.
+
+* Data preparation as well as selection of study region (1-4a), and exploration of results (5-15) was done in RStudio.
+* Identification of top predictors (5b) was done in R.
+
+Running times:
+* Prepare data (BIOMOD formating): 40min for 40 species.
+* SDMs using biomod2: ~10min per species.
+* ESMs using ecospat: ~1h per species.
+
+## Help
+
+You may need to create subfolders (results, docs, figures) to run each line of code and save results and figures (i.e., use outcommented code if otherwise missing). 
+
+
+## Authors
+
+Contributors names and contact info
+
+Romy Zeiss  
+[@RomyZeiss](romyzeiss@gmail.com)
+
+Peter Kullberg, Ninni Mikkonen, Irene Calderon-Sanou, Concha Cano-Díaz, Sofia R. Costa, Nico Eisenhauer, Paulo Fernandes, Irina Kalmanova, Jérome Mathieu, Susana Mendes, Anton Potapov, Carlos A. Guerra
+
+
+## License
+
+This project is licensed under the CC-BY 4.0 license - see the LICENSE.txt file for details.
+
+
+## Acknowledgments
+
+All authors thank the following experts for their help with taxonomic harmonization: Zoë Lindo, Fred Beaulieu and Evert Lindquist (Acari). RZ thanks Steph Jurburg for her valuable support with identifying and handling protist sequences, and Henriette Christel for the preparation of the Europe map in Figure 1 (workflow). We also acknowledge Ludmilla Figueiredo from the iDiv Data & Code Unit for assistance with curation and archiving of the dataset. This work was supported by national funds through the Portuguese Foundation for Science and Technology (FCT), as part of Project SoilRecon https://doi.org/10.54499/PTDC/BIA-CBI/2340/2020. SC acknowledges funding from CBMA https://doi.org/10.54499/UIDB/04050/2020). RZ, IC, CC, NE, AP and CG acknowledge support of iDiv funded by the German Research Foundation (DFG FZT 118, 202548816). RZ was funded by the German Federal Environmental Foundation (DBU, 20021/752) and the DFG (Ei 862-29/1). This work was supported by a fellowship of the German Academic Exchange Service (DAAD). The product was generated by the land service of Copernicus, the Earth Observation program of the European Commission. The research leading to the current version of the product has received funding from various European Commission Research and Technical Development programs, more specifically the MARS program. The product was based on PROBA-V data ((c) ESA). Open Access funding enabled and organized by Projekt DEAL.
+
+
+## Use of ChatGPT in Project Development
+This project was partially developed with the assistance of OpenAI's ChatGPT version GPT-5, a large language model designed to support developers in coding, debugging, and explaining complex concepts. ChatGPT was used to help with tasks such as generating code snippets, providing algorithmic insights, refining documentation, and ensuring proper project organization. While the model provided suggestions, all code has been thoroughly reviewed, tested, and modified by the project maintainers to ensure accuracy, efficiency, and relevance to the project's objectives.
+
+
+## References
+
+Zeiss, R., Briones, M., Mathieu, J., Lomba, A., Dahlke, J., Heptner, L., Eisenhauer, N., Salako, G. & Guerra, C. A. (2023). Effects of climate on the distribution and conservation of commonly observed European earthworms. Conservation Biology. https://doi.org/10.1111/cobi.14187 
+
+Zeiss, R., Kullberg, P., Mikkonen, N., Calderon-Sanou, I., Cano-Díaz, C., Costa, S. R., Eisenhauer, N., Fernandes, P., Kalmanova, I., Mathieu, J., Mendes, S., Potapov, A., & Guerra, C. A. (in Preparation). European nature conservation priorities for soil biodiversity.
+
+
+## Folder structure
+
+### CODE repository
+
+#### _doc
+Documentation: taxonomic backbone used in this study, and ODMAP protocol on SDM procedure.
+* ODMAP_Zeiss_et_al_2023-06-28.csv
+  * ODMAP protocol summarizing settings and input data of Species Distribution Modeling. Version: 2023-06-28.
+
+
+#### _src
+
+Note that the object `Taxon_name` has to be manually changed/set in all scripts when running scripts for different taxonomic groups.
+
+* 01_Prepare_environment.R
+  * R code to prepare predictors at 1km resolution using terra package based on raster stacks from Zeiss et al. (2023). Includes combining and clipping of predictors as well as identifying multicolinearity between predictors.
+
+* 02a_Rarefy_biodiversity_data.R
+   * R code to prepare sequencing data, that is filtering and rarefaction by taxonomic groups.
+
+* 02b_Clean_biodiversity_data.R
+   * R code to clean occurrence data using CoordinateCleaner package among others.
+
+* 03b_Occurrences_to_1km_grid.R
+   * R code to rasterize occurrence point records into 1km² grid system in Northern Portugal. 
+
+* 04a_Prepare_input_data.R
+   * R code to prepare input for SDMs using biomod2 package. Output is used for both, MaxEnt and BIOMOD analysis.
+
+* 05-9b_Full_ESMs.R
+  * R code to perform Species Distribution Models (SDMs) using Ensembles of Small Models (ESMs, ecospat package). Output is saved in folders per taxonomic group. Intermediate model output is deleted directly after projecting distributions.
+
+* 05-9b_Full_SDMs.R
+  * R code to perform Species Distribution Models (SDMs) using biomod2. Output is saved in folders per species. Intermediate model output is deleted directly after projecting distributions.
+
+* 05b_Identify_drivers.R
+  * R code to identify important predictors by running MaxEnt analysis based on highest median permutation importance.
+
+* 06_Uncertainty_analysis.R
+   * Combine uncertainty maps in one raster stack. 
+
+* 09_Model_performance.R
+  * R code to extract model performance measures (AUC(ROC), TSS and Kappa) from ESM and SDM output, as well as thresholds to transform probabilities of presence into binary presence-absence.
+
+* 10a_Calculate_richness_current.R
+  * R code to calculate species richness using binary maps with thresholds based on model performance.
+
+* 12b_Prepare_degradation_drivers.R
+  * R code to harmonize and clip maps of soil degradation drivers to selected study region. Data are transformed to presence-absence of degradation factors based on thresholds from literature or specific to data.
+
+* 13_Prepare_input_Zonation.R
+  * R code to select relevant files from Species Distribution Modeling, copy them into the directory where the prioritization will be run, and prepare folders and scripts for the prioritization analyses that will be run afterwards using Zonation.
+
+* 14_Output_Zonation.R
+  * R code to create and save figures, and extract some values from prioritization analysis.
+
+* 14_Plotting_and_results.R
+  * R code to create and save figures, and extract some values from Species Distribution Modeling.
+
+Remaining scripts are outdates but contain helpful lines of code. For example:
+
+* INTERN_Calculate_ensemble_projection.R
+  * R code to calculate ensemble projection from the full GLM and full MaxEnt model projections predicted using Ensembles of Small Models (package ecospat). This step was only necessary because the wrong layers were saved from the ensemble projection output.
+
+* OLD_14_Animated_map.R
+  * R code to plot taxa richness in animated maps, meaning taxa are added stepwise to the richness map.
+
+### DATA repository:
+
+#### _data
+Environmental data to predict species distributions were collected as described in Zeiss et al. (2023). In addition, a raster stack with degradation drivers cropped to the Portuguese extent are stored here.
+
+* METADATA_Predictors.csv
+  * Information about predictors such as source, resolution and processing.
+
+
+Species occurrence data were collected in a standardized effort in Northern Portugal as described in Zeiss et al. (in Prep.) and respective references. Raw data includes raw OTU tables for bacteria (16s) and eukaroyta, earthworm and nematode data, as well as sampling site information. In addition, OTU table was split by taxonomic groups and all were saved in this folder. 
+
+
+#### _intermediates
+
+Following intermediate results have not been shared in the data repository but can be generated from scratch using raw data and provided R scripts:
+
+* ~/BIOMOD_data
+  * Folder with subfolders for each taxonomic group containing data prepared for SDMs using biomod2 (or ESMs) as .RData. File naming convention: `BiomodData_[Taxonomic group]_[Taxon ID].RData`.
+
+* EnvPredictor_1km_POR.tif 
+  * Environmental dataset prepared for Northern Portugal
+
+* EnvPredictor_1km_POR_normalized.tif and EnvPredictor_1km_POR_scaling.csv
+  * Environmental dataset prepared for Northern Portugal and normalized with parameters for normalization saved in `.csv` file
+
+* EnvPredictor_PCA_1km_POR.tif and .RData
+  * Principal component axis from environmental predictors prepared for Germany and used in SDMs.
+
+* ESM_[Taxonomic group].csv
+  * Table with one column containing IDs of taxa for each taxonomic group with >9 and <100 records, therefore modeled using Ensembles of Small Models (ESMs).
+
+* Occurrence_rasterized_1km_[Taxonomic group].csv
+  * Occurrence records rasterized (i.e., aggregated at 1km² grid) for each taxonomic group.
+
+* Occurrence_raw_[Taxonomic group].csv
+  * Raw occurrence records for each taxonomic group merged using script 2b.
+
+* Occurrences_clean_[Taxonomic group].csv
+  * Cleaned occurrence records for each taxonomic group as prepared in script 2b.
+
+* PCA_EnvPredictor_1km_POR.txt
+  * Importance of components associated with PCA `.tif` file for Northern Portugal.
+
+* POR_protection_distance.tif
+  * File to calculate distance of grid cells to protected areas. Initial purpose: serve as condition layer or hierarchical mask in prioritization to give higher weight to areas closer to current protected areas (i.e., expanding protected areas rather than adding new ones). Outcome: even with different values, weight to nearby areas was to strong driving priority rank maps, and includion as condition layer not easily possible when including model uncertainties at the same time.
+
+* Protection_POR.shp
+  * Shapefile containing polygons of the protected areas in Northern Portugal (POR) cropped from database of protected areas (WDPA, protectedplanet.net).
+
+* Protection_POR_coverage.tif
+  * Raster file containing percentage of coverage of each grid cell by protected areas. Different layers respond to different IUCN protected area management categories.
+
+* SDM_[Taxonomic group].csv
+  * Table with one column containing IDs of taxa for each taxonomic group with >99 records, therefore modeled using biomod2 Species Distribution Models (SDM).
+ 
+
+#### _results
+
+* ~/Maps
+  * Folder with raster stacks for all taxonomic group containing distribution maps (SDM_stack_binary), uncertainy (SDM_Uncertainty) and richness for all, only ESM (10) and only SDM (100) taxa, as well as Zonation priorities. Outputs in this folder were created using both script 14 (Output Zonation) and 10a. 
+
+* ~/_TopPredictor
+  * Folder containing the MaxEnt analysis to identify the drivers (i.e., most important predictors) of taxa distributions. For each taxonomic group, a separate subfolder exists with the prepared input data for MaxEnt SDMs (MaxentData_noValid_[Taxonomic group]_[Taxon ID].RData) and model output (SDM_maxent_noValid_[Taxon ID].RData). The subfolder maxent_files contains the full MaxEnt output with one folder per species.
+
+* ~/[Taxonomic group]
+  * Folder containing taxa-specific Species Distribution Model output from biomod2 and ESM analysis. The subfolder Ensembles includes the projected distribution, the subfolder SDMs contains model performance and respective thresholds for binary projections, and the subfolder Uncertainty includes clamping masks from SDMs, and maps with coefficient of variables as estimate of model uncertainty for both SDMs and ESMs per taxon.
+
+* ~/Zonation
+  * Input for prioritization analysis copied and subsetted from files in the results folder (script 13). Distribution and associated uncertainty maps are stored per taxonomic group in respective subfolders in ~/data ([Model type: 10 = ESM, 100 = SDM]_[Taxon ID].tif or _certainty.tif). The data folder also includes a raster with the extent of the analysis area (Analysis_area.tif). Other input files prepared for Zonation include condition link file to include uncertainty of distribution models (certainty_[Model type].txt), aggregated soil degradation drivers (Degradation_[aggregation method].tif), biodiversity feature file to provide names of taxa distribution (features_[Model type].csv), weights for each taxonomic group based on number of taxa modeled per group (group_weights_[Model type].txt), protected area (PA) network and distance to protected areas (POR_[PA subset]PA.tif and POR_distance_[PA subset]PA.tif), and table connecting taxon IDs with taxonomic groups and group weights (TaxaNames_legend.csv).
+
+* FlaggedRecords_[Taxonomic group].csv
+  * Table containing flagged records based on issues in coordinates as identified by CoordinateCleaner package for each taxonomic group. Only saved for nematodes as all data were collected at the same sampling sites.
+
+* maxent.jar
+  * File required for MaxEnt analysis in all SDMs using biomod2 and ESMs using ecospat package, and identifying drivers using MaxEnt.
+
+* Model_evaluation_[Taxonomic group].csv
+  * Model performance values extracted from SDM output for each taxonomic group.
+
+* Model_thresholds_ESM_[Taxonomic group].csv and Model_thresholds_[Taxonomic group].csv
+  * Thresholds to transform continuous probability of presence in binary presence-absence maps as provided in model output from ESM (no additional text in name) and SDMs (SDM) for each taxonomic group.
+
+* NoRecords_cleaning_[Taxonomic group].csv
+  * Table with number of records after each cleaning step for GBIF dataset and total occurrence dataset fpr each taxonomic group.
+
+* Occurrence_rasterized_1km_BIOMOD_[Taxonomic group].csv
+  * Species occurrence records summarized for each 1km² grid cell and species. In addition, this file contains pseudo-absences required for SDMs and created with biomod2::BIOMOD_FormattingData() function.
+
+* SDM_Uncertainty_[Taxonomic group]_10(0).tif
+    * Raster stack with model uncertainty per taxon for each taxonomic group for taxa modeled using ESM (10) and biomod2 SDMs (100) respectively.
+
+* SDM_Uncertainty_extent_[Taxonomic group]_10(0).RData
+    * Extent of analysis with uncertainty of all taxa per taxonomic group being lower that taxa-specific threshold. Extent was generated for taxa modeled using ESM (10) and biomod2 SDMs (100) respectively.
+
+* Species_list_[Taxonomic group].csv
+  * Table with raw taxon names and number of grid cells with presence and pseudo-absences for each taxonomic group. In the case of taxonomic groups modeled using sequencing data, information about phylogeny and OTU number is included, too.
+
+* TopPredictor_MaxEnt_[Taxonomic group].csv
+  * Summarized variable importance for each taxonomic group with mean importance and number of species estimated to have each predictor under the top predictors.
+
+* Variable_importance_MaxEnt_[Taxonomic group].csv
+  * Permutation importance values for all predictor variables from taxon-specific MaxEnt analysis for each taxonomic group.
+
+* VIF_predictors_1km_POR.csv
+  * Variable inflation factor for environmental predictors for Northern Portugal to identify and exclude predictors causing colinearity (i.e., correlated factors). Columns: variable inflation factor before (column VIF_raw) and after removing variables with VIF>10 (VIF), and Pearson correlations calculated by usdm::vifcor() function. 
+
+* Zonation_comparison.csv
+  * Summary table comparing prioritization scenarios in terms of overlapping cells.
+
+* Zonation_comparison.tif
+  * Raster stack containing priority rank maps of all prioritization scenarios.
+
+* Zonation_performance_allScenarios.csv
+  * Table with values from performance curves (output of Zonation analysis) for all prioritization scenarios.
+
+* Zonation_performance_curve_coverage.csv and Zonation_performance_curve_coverage_summary.csv
+  * Table with top 1, 5, 10, 30 and all priority areas as well as area of protected areas for all prioritization scenarios. The summary table is in wide rather than long format.
+
+* Zonation_priorities_sum_top5.tif
+  * Top 5% priority areas for all prioritization scenarios.
+
+
+## Manual setup
+
+If you prefer setting up the packages and R environment manually, please have a look at the sessionInfo() output below.
+
+* sessionInfo()
+R version 4.3.0 (2023-04-21 ucrt)
+Platform: x86_64-w64-mingw32/x64 (64-bit)
+Running under: Windows Server 2019 x64 (build 17763)
+
+Matrix products: default
+
+
+locale:
+[1] LC_COLLATE=English_United States.1252  LC_CTYPE=English_United States.1252    LC_MONETARY=English_United States.1252 LC_NUMERIC=C                          
+[5] LC_TIME=English_United States.1252    
+
+time zone: Europe/Berlin
+tzcode source: internal
+
+attached base packages:
+ [1] parallel  grid      splines   stats     graphics  grDevices datasets  utils     methods   base     
+
+other attached packages:
+ [1] ecospat_4.1.2        tidyterra_0.7.2      patchwork_1.3.2      vegan_2.6-10         lattice_0.22-6       permute_0.9-7        colorRamps_2.3.4     gridExtra_2.3        doParallel_1.0.17   
+[10] iterators_1.0.14     giscoR_0.6.1         eurostat_4.0.0       ggsn_0.5.0           sf_1.0-16            ggpubr_0.6.0         xgboost_1.7.10.1     randomForest_4.7-1.2 maxnet_0.1.4        
+[19] earth_5.3.4          plotmo_3.6.4         plotrix_3.8-4        Formula_1.2-5        gbm_2.2.2            mgcv_1.8-42          nlme_3.1-162         gam_1.22-5           foreach_1.5.2       
+[28] mda_0.5-5            class_7.3-21         rpart_4.1.19         nnet_7.3-18          biomod2_4.2-6-2      terra_1.8-80         here_1.0.1           lubridate_1.9.2      forcats_1.0.0       
+[37] stringr_1.5.0        dplyr_1.1.2          purrr_1.0.1          readr_2.1.4          tidyr_1.3.0          tibble_3.2.1         ggplot2_3.5.2        tidyverse_2.0.0     
+
+loaded via a namespace (and not attached):
+ [1] bitops_1.0-7           DBI_1.2.3              pROC_1.18.5            httr2_1.2.1            readxl_1.4.3           rlang_1.1.1            magrittr_2.0.3         maptools_1.1-7        
+ [9] e1071_1.7-13           compiler_4.3.0         png_0.1-8              vctrs_0.6.3            reshape2_1.4.4         pkgconfig_2.0.3        backports_1.5.0        ISOweek_0.6-2         
+[17] tzdb_0.4.0             jsonlite_1.8.5         PresenceAbsence_1.1.11 RefManageR_1.4.0       reshape_0.8.9          jpeg_0.1-10            broom_1.0.7            cluster_2.1.4         
+[25] R6_2.5.1               stringi_1.7.12         car_3.1-3              cellranger_1.1.0       Rcpp_1.1.0             assertthat_0.2.1       Matrix_1.5-4           timechange_0.2.0      
+[33] tidyselect_1.2.1       rstudioapi_0.17.1      abind_1.4-8            codetools_0.2-19       curl_7.0.0             plyr_1.8.8             withr_3.0.2            foreign_0.8-84        
+[41] survival_3.5-5         units_0.8-2            proxy_0.4-27           xml2_1.3.4             pillar_1.10.1          carData_3.0-5          KernSmooth_2.23-20     renv_1.1.4.9000       
+[49] generics_0.1.3         rprojroot_2.0.4        sp_1.6-1               hms_1.1.3              munsell_0.5.1          regions_0.1.8          scales_1.3.0           glue_1.6.2            
+[57] tools_4.3.0            data.table_1.14.8      ggsignif_0.6.4         biscale_1.0.0          cowplot_1.1.3          bibtex_0.5.1           colorspace_2.1-0       cli_3.6.1             
+[65] rappdirs_0.3.3         ggmap_4.0.0            countrycode_1.6.1      gtable_0.3.6           rstatix_0.7.2          digest_0.6.31          classInt_0.4-9         farver_2.1.2          
+[73] lifecycle_1.0.4        httr_1.4.7             MASS_7.3-58.4   

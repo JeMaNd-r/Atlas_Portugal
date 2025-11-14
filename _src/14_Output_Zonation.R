@@ -11,6 +11,7 @@ list.files(zonation_dir, include.dirs = TRUE)
 
 library(terra)
 library(tidyverse)
+library(tidyterra)
 library(patchwork)
 
 approaches <- c("target", "complement", "prevent")
