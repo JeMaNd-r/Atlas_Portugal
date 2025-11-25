@@ -14,7 +14,7 @@ library(tidyverse)
 library(tidyterra)
 library(patchwork)
 
-approaches <- c("target", "complement", "prevent")
+approaches <- c("target", "additive", "prevent")
 species_numbers <- c("", "_10", "_100")
 species_uncertainties <- c("", "_noCert")
 group_weights <- c("", "_grW")
@@ -141,7 +141,7 @@ m_iucnpa <- matrix(c(
 m_iucnpa; percentage_iucnpa
 
 # maps without protected areas
-layer_names <- apply(expand.grid("complement", species_numbers, species_uncertainties, group_weights, protected_areas, protection_distances), 1, paste, collapse = "")
+layer_names <- apply(expand.grid("additive", species_numbers, species_uncertainties, group_weights, protected_areas, protection_distances), 1, paste, collapse = "")
 layer_names <- c(layer_names, apply(expand.grid("prevent", species_numbers, species_uncertainties, group_weights, protected_areas, protection_distances, degradation_weights), 1, paste, collapse = ""))
 for (i in names(priority_rast_c)[names(priority_rast_c) %in% layer_names]) { 
   
@@ -314,23 +314,23 @@ for(temp_class in top_legend$class){
   
   # comparisons
   comparison_df <- data.frame(base_map = c("target_grW", "target_grW", "target_grW", "target_grW", ## ADD UNCERTAINTY
-                                           "complement_grW", "complement_grW", 
-                                           "complement_grW",
+                                           "additive_grW", "additive_grW", 
+                                           "additive_grW",
                                            "prevent_grW_maxSubset", "prevent_grW_maxSubset",
                                            "prevent_grW_maxSubset",
-                                           "target_grW", "target_grW", "complement_grW"),
+                                           "target_grW", "target_grW", "additive_grW"),
                               compare_map = c("target", "target_10_grW", "target_100_grW", "target_noCert_grW",
-                                              "complement", "complement_grW_allPA",
-                                              "complement_100_grW",
+                                              "additive", "additive_grW_allPA",
+                                              "additive_100_grW",
                                               "prevent_maxSubset", "prevent_grW_max",
                                               "prevent_grW_allPA_maxSubset",
-                                              "complement_grW", "prevent_grW_maxSubset", "prevent_grW_maxSubset"),
+                                              "additive_grW", "prevent_grW_maxSubset", "prevent_grW_maxSubset"),
                               name_diff = c("Group weights (t)", "ESM taxa (t)", "SDM taxa (t)", "Uncertainty (t)",
-                                            "Group weights (c)", "Protected areas (c)", 
-                                            "SDM taxa (c)",
+                                            "Group weights (a)", "Protected areas (a)", 
+                                            "SDM taxa (a)",
                                             "Group weights (p)", "Driver subset (p)",
                                             "Protected areas (p)",
-                                            "c - t", "p - t", "p - c"),
+                                            "a - t", "p - t", "p - a"),
                               class = temp_class,
                               n_cells = NA,
                               n_cell_diff = NA,
@@ -414,26 +414,26 @@ comparison_rast <- terra::rast("_results/Zonation_comparisons.tif")
 
 ## How well do PAs perform?
 # - all PA to IUCN PA (x group weight to same weight)
-# - target to complement: all and IUCN PA (and group to same weight)
+# - target to additive: all and IUCN PA (and group to same weight)
 comparison_df %>% dplyr::filter(base_map == "target_grW" &
-                                  compare_map == "complement_grW")
-comparison_df %>% dplyr::filter(base_map == "complement_grW"  & 
-                                  compare_map == "complement_grW_allPA")
+                                  compare_map == "additive_grW")
+comparison_df %>% dplyr::filter(base_map == "additive_grW"  & 
+                                  compare_map == "additive_grW_allPA")
 
-coverage_df_sum %>% dplyr::filter(scenario == "target_grW" | scenario == "complement_grW" | 
-                                    scenario == "complement_grW_allPA")
-coverage_df_sum %>% dplyr::filter(scenario == "target_grW" | scenario == "complement_grW" | 
-                                    scenario == "complement_grW_allPA") %>%
+coverage_df_sum %>% dplyr::filter(scenario == "target_grW" | scenario == "additive_grW" | 
+                                    scenario == "additive_grW_allPA")
+coverage_df_sum %>% dplyr::filter(scenario == "target_grW" | scenario == "additive_grW" | 
+                                    scenario == "additive_grW_allPA") %>%
   mutate(across(where(is.numeric), function(x) x - coverage_PA))
-terra::plot(terra::subset(comparison_rast, str_detect(names(comparison_rast), "c - t")), maxnl = 50)
-terra::plot(terra::subset(comparison_rast, str_detect(names(comparison_rast), "Protected areas [(]c[)]")), maxnl = 50)
+terra::plot(terra::subset(comparison_rast, str_detect(names(comparison_rast), "a - t")), maxnl = 50)
+terra::plot(terra::subset(comparison_rast, str_detect(names(comparison_rast), "Protected areas [(]a[)]")), maxnl = 50)
 
 terra::plot(c(priority_rast_c$target_grW,
-              priority_rast_c$complement_grW,
-              priority_rast_c$complement_grW_allPA,
-              terra::subset(comparison_rast, str_detect(names(comparison_rast), "^1[%] c - t")),
-              terra::subset(comparison_rast, str_detect(names(comparison_rast), "^5[%] c - t")),
-              terra::subset(comparison_rast, str_detect(names(comparison_rast), "^5[%] Protected areas [(]c[)]"))), 
+              priority_rast_c$additive_grW,
+              priority_rast_c$additive_grW_allPA,
+              terra::subset(comparison_rast, str_detect(names(comparison_rast), "^1[%] a - t")),
+              terra::subset(comparison_rast, str_detect(names(comparison_rast), "^5[%] a - t")),
+              terra::subset(comparison_rast, str_detect(names(comparison_rast), "^5[%] Protected areas [(]a[)]"))), 
             maxnl = 50, nc = 3)
 
 # group weight to all same weight species at least targeted
@@ -486,41 +486,41 @@ comparison_df %>% dplyr::filter(base_map == "prevent_grW_maxSubset" &
                                   compare_map == "prevent_grW_max")
 coverage_df_sum %>% dplyr::filter(scenario == "prevent_grW_maxSubset" | scenario == "prevent_grW_max")
 
-# - prevent subset to complement grW
-comparison_df %>% dplyr::filter(base_map == "complement_grW" &
+# - prevent subset to additive grW
+comparison_df %>% dplyr::filter(base_map == "additive_grW" &
                                   compare_map == "prevent_grW_maxSubset")
-coverage_df_sum %>% dplyr::filter(scenario == "prevent_grW_maxSubset" | scenario == "complement_grW")
+coverage_df_sum %>% dplyr::filter(scenario == "prevent_grW_maxSubset" | scenario == "additive_grW")
 
 terra::plot(terra::subset(comparison_rast, str_detect(names(comparison_rast), "Driver subset [(]p[)]")))
-terra::plot(terra::subset(comparison_rast, str_detect(names(comparison_rast), "p - c")))
+terra::plot(terra::subset(comparison_rast, str_detect(names(comparison_rast), "p - a")))
 
 terra::plot(c(priority_rast_c$prevent_grW_maxSubset,
               priority_rast_c$prevent_grW_max,
-              priority_rast_c$complement_grW,
+              priority_rast_c$additive_grW,
               terra::subset(comparison_rast, str_detect(names(comparison_rast), "^5[%] Driver subset [(]p[)]")),
               terra::subset(comparison_rast, str_detect(names(comparison_rast), "^30[%] Driver subset [(]p[)]")),
-              terra::subset(comparison_rast, str_detect(names(comparison_rast), "^30[%] p - c"))), 
+              terra::subset(comparison_rast, str_detect(names(comparison_rast), "^30[%] p - a"))), 
             maxnl = 50, nc = 3)
 
-#- - - - - - - - - - - - - - - - - - - - - -
-## Maps ####
-terra::plot(c(priority_rast_c$target_grW,
-              priority_rast_c$complement_grW,
-              priority_rast_c$prevent_grW_maxSubset,
-              terra::subset(comparison_rast, str_detect(names(comparison_rast), "^10[%] c - t")),
-              terra::subset(comparison_rast, str_detect(names(comparison_rast), "^10[%] p - t")),
-              terra::subset(comparison_rast, str_detect(names(comparison_rast), "^10[%] p - c"))), 
-            maxnl = 50, nc = 3)
-
-priority_rast_c$tcp <- app(c(priority_rast_c$target_grW, priority_rast_c$complement_grW, priority_rast_c$prevent_grW_maxSubset), 
-                           fun = function(x) x[1] * 100 + x[2] * 10 + x[3])
-terra::plot(as.factor(priority_rast_c$tcp))
-                        
-# load map created using Zonation Multiaction Visualization
-prio_tcp <- terra::rast(paste0(zonation_dir, "/Zonation_priorities_tcp_POR.tiff"))
-prio_tcp
-#terra::plot(prio_tcp)
-terra::plotRGB(terra::subset(prio_tcp, 1:3), r = 1, g = 2, b = 3, stretch="lin")
+# #- - - - - - - - - - - - - - - - - - - - - -
+# ## Maps ####
+# terra::plot(c(priority_rast_c$target_grW,
+#               priority_rast_c$additive_grW,
+#               priority_rast_c$prevent_grW_maxSubset,
+#               terra::subset(comparison_rast, str_detect(names(comparison_rast), "^10[%] c - t")),
+#               terra::subset(comparison_rast, str_detect(names(comparison_rast), "^10[%] p - t")),
+#               terra::subset(comparison_rast, str_detect(names(comparison_rast), "^10[%] p - c"))), 
+#             maxnl = 50, nc = 3)
+# 
+# priority_rast_c$tcp <- app(c(priority_rast_c$target_grW, priority_rast_c$additive_grW, priority_rast_c$prevent_grW_maxSubset), 
+#                            fun = function(x) x[1] * 100 + x[2] * 10 + x[3])
+# terra::plot(as.factor(priority_rast_c$tcp))
+#                         
+# # load map created using Zonation Multiaction Visualization
+# prio_tcp <- terra::rast(paste0(zonation_dir, "/Zonation_priorities_tcp_POR.tiff"))
+# prio_tcp
+# #terra::plot(prio_tcp)
+# terra::plotRGB(terra::subset(prio_tcp, 1:3), r = 1, g = 2, b = 3, stretch="lin")
    
 #- - - - - - - - - - - - - - - - - - - - - -
 ## Summary map ####
@@ -531,33 +531,36 @@ priority_rast_c_sum <- sum(priority_rast_c_sum>=3)
 terra::plot(priority_rast_c_sum) #top 5%
 
 overlap_df <- as.data.frame(table(values(priority_rast_c_sum)))
-overlap_df$Prop <- overlap_df$Freq / 40066
+overlap_df$Prop <- overlap_df$Freq / 38569
 hist(overlap_df$Freq)
 overlap_df %>% arrange(Prop)
 
+# percent of unprioritized area (Var1==0)
 overlap_df %>% 
   mutate(Freq_cumsum = cumsum(Freq),
-         Prop_cumsum = Freq_cumsum / (40066))
+         Prop_cumsum = Freq_cumsum / (38569))
+# percent of unprioritized area excluding PAs (Var1==0)
 overlap_df %>% 
   mutate(Freq_cumsum = cumsum(Freq),
-         Prop_cumsum = Freq_cumsum / (40066 - coverage_pa))
+         Prop_cumsum = Freq_cumsum / (38569 - coverage_pa))
+# percent overlap reached
 overlap_df %>%
   arrange(desc(Var1)) %>%
   mutate(Freq_cumsum = cumsum(Freq),
-         Prop_cumsum = Freq_cumsum / (40066 - coverage_pa))
+         Prop_cumsum = Freq_cumsum / (38569 - coverage_pa))
 overlap_df
 
 
 target_sum <- sum(terra::subset(priority_rast_c, str_detect(names(priority_rast_c), "target"))>=3)
-complement_sum <- sum(terra::subset(priority_rast_c, str_detect(names(priority_rast_c), "complement"))>=3)
+additive_sum <- sum(terra::subset(priority_rast_c, str_detect(names(priority_rast_c), "additive"))>=3)
 prevent_sum <- sum(terra::subset(priority_rast_c, str_detect(names(priority_rast_c), "prevent"))>=3)
 
 names(target_sum) <- "targeted"
-names(complement_sum) <- "complementing"
+names(additive_sum) <- "additiveing"
 names(prevent_sum) <- "prevention"
 
-terra::plot(c(target_sum, complement_sum, prevent_sum), nr=3)
-terra::plot(c(priority_rast_c$target_grW, priority_rast_c$complement_grW, priority_rast_c$prevent_grW_maxSubset), nr=3)
+terra::plot(c(target_sum, additive_sum, prevent_sum), nr=3)
+terra::plot(c(priority_rast_c$target_grW, priority_rast_c$additive_grW, priority_rast_c$prevent_grW_maxSubset), nr=3)
 
 pdf("_figures/Zonation_priorities_sum_top5.pdf")
 terra::plot(priority_rast_c_sum) #top 5%
@@ -567,7 +570,7 @@ writeRaster(priority_rast_c_sum, "_results/Zonation_priorities_sum_top5.tif",
             datatype = "INT2U", overwrite = TRUE)
 terra::plot(rast("_results/Zonation_priorities_sum_top5.tif")) #fliped for hierarchical mask
 
-# manually: load to Zonation just like complement_grW analysis
+# manually: load to Zonation just like additive_grW analysis
 # output -> performance curve
 
 #- - - - - - - - - - - - - - - - - - - - - -
@@ -575,9 +578,9 @@ terra::plot(rast("_results/Zonation_priorities_sum_top5.tif")) #fliped for hiera
 #- - - - - - - - - - - - - - - - - - - - - -
 priority_rast_c_main <- c(
   priority_rast_c$target_grW,
-  priority_rast_c$complement_grW,
+  priority_rast_c$additive_grW,
   priority_rast_c$prevent_grW_maxSubset)
-names(priority_rast_c_main) <- c("Targeted", "Complementing", "Prevention")
+names(priority_rast_c_main) <- c("Targeted", "Additive", "Prevention")
 p_main <- ggplot()+
   tidyterra::geom_spatraster(data = priority_rast_c_main,
                              mask_projection=TRUE)+
@@ -644,9 +647,9 @@ p_target_sum <- ggplot()+
         panel.border = element_blank(),
         legend.position = "right")
 p_target_sum
-p_complement_sum <- ggplot()+
-  ggtitle("Complementing scenarios")+
-  tidyterra::geom_spatraster(data = complement_sum,
+p_additive_sum <- ggplot()+
+  ggtitle("Additive scenarios")+
+  tidyterra::geom_spatraster(data = additive_sum,
                              mask_projection=TRUE)+
   scale_fill_gradient(na.value = "white",
                       name = "",
@@ -678,7 +681,7 @@ p_prevent_sum <- ggplot()+
         legend.position = "right")
 
 ggsave(paste0("_figures/Zonation_priorities_scenarioNumber_POR.png"), 
-       (p_target_sum / p_complement_sum / p_prevent_sum),
+       (p_target_sum / p_additive_sum / p_prevent_sum),
        width = 10, height = 10)
 
 
@@ -686,9 +689,9 @@ ggsave(paste0("_figures/Zonation_priorities_scenarioNumber_POR.png"),
 ## Performance curves ####
 curve_target <- read_delim(paste0(zonation_dir, "/", "target_grW",
                                 "/subregion_1/summary_curves.csv"))
-curve_complement <- read_delim(paste0(zonation_dir, "/", "complement_grW",
+curve_additive <- read_delim(paste0(zonation_dir, "/", "additive_grW",
                                       "/subregion_1/summary_curves.csv"))
-curve_complementAll <- read_delim(paste0(zonation_dir, "/", "complement_grW_allPA",
+curve_additiveAll <- read_delim(paste0(zonation_dir, "/", "additive_grW_allPA",
                                          "/subregion_1/summary_curves.csv"))
 curve_prevent <- read_delim(paste0(zonation_dir, "/", "prevent_grW_maxSubset",
                                       "/subregion_1/summary_curves.csv"))
@@ -713,24 +716,24 @@ ggplot()+
                                   color = "prevention",
                                   lty = "prevention"),
             lwd = 1.5)+
-  geom_line(data = curve_complement, aes(x = rank, y = weighted_mean_positive,
-                                         color = "complementing",
-                                         lty = "complementing"),
+  geom_line(data = curve_additive, aes(x = rank, y = weighted_mean_positive,
+                                         color = "additive",
+                                         lty = "additive"),
             lwd = 1.5)+
-  geom_line(data = curve_complementAll, aes(x = rank, y = weighted_mean_positive,
-                                     color = "complementing (all PAs)",
-                                     lty = "complementing (all PAs)"),
+  geom_line(data = curve_additiveAll, aes(x = rank, y = weighted_mean_positive,
+                                     color = "additive (all PAs)",
+                                     lty = "additive (all PAs)"),
             lwd = 1.5)+
   xlab("Priority rank")+ 
   ylab("Weighted mean coverage of features")+
   scale_color_manual(values = c("targeted" = "#E18616",
-                              "complementing" = "#059041",
-                              "complementing (all PAs)" = "#059041",
+                              "additive" = "#059041",
+                              "additive (all PAs)" = "#059041",
                               "prevention" = "#633708"),
                      name = "Approach")+
   scale_linetype_manual(values = c("targeted" = "solid",
-                                 "complementing" = "solid",
-                                 "complementing (all PAs)" = "twodash",
+                                 "additive" = "solid",
+                                 "additive (all PAs)" = "twodash",
                                  "prevention" = "solid"),
                         name = "Approach")+
   scale_x_continuous(limits = c(0,1), expand = c(0,0))+
@@ -773,10 +776,10 @@ ggplot()+
                                          lty = "prevention (all drivers)",
                                          lwd = "prevention (all drivers)"))+
 
-  geom_line(data = curve_complementAll, aes(x = rank, y = weighted_mean_positive,
-                                            color = "complementing (all PAs)",
-                                            lty = "complementing (all PAs)",
-                                            lwd = "complementing (all PAs)"))+
+  geom_line(data = curve_additiveAll, aes(x = rank, y = weighted_mean_positive,
+                                            color = "additive (all PAs)",
+                                            lty = "additive (all PAs)",
+                                            lwd = "additive (all PAs)"))+
   
   geom_line(data = curve_target_noCert, aes(x = rank, y = weighted_mean_positive, 
                                            color = "targeted (no uncertainty)", 
@@ -802,10 +805,10 @@ ggplot()+
                                       color = "prevention",
                                       lty = "prevention",
                                       lwd = "prevention"))+
-  geom_line(data = curve_complement, aes(x = rank, y = weighted_mean_positive,
-                                         color = "complementing",
-                                         lty = "complementing",
-                                         lwd = "complementing"))+
+  geom_line(data = curve_additive, aes(x = rank, y = weighted_mean_positive,
+                                         color = "additive",
+                                         lty = "additive",
+                                         lwd = "additive"))+
   xlab("Priority rank")+ 
   ylab("Weighted mean coverage of features")+
   scale_color_manual(values = c("targeted" = "#E18616",
@@ -813,19 +816,19 @@ ggplot()+
                                 "targeted (no uncertainty)" = "#E18616",
                                 "targeted (SDMs)" = "#E18616",
                                 "targeted (ESMs)" = "#E18616",
-                                "complementing" = "#059041",
-                                "complementing (all PAs)" = "#059041",
+                                "additive" = "#059041",
+                                "additive (all PAs)" = "#059041",
                                 "prevention" = "#633708",
                                 "prevention (all PAs)" = "#633708",
                                 "prevention (all drivers)" = "#633708"),
                      name = "Approach")+
   scale_linetype_manual(values = c("targeted" = "solid",
-                                   "targeted (no group weight)" = "twodash",
-                                   "targeted (no uncertainty)" = "longdash",
+                                   "targeted (no group weight)" = "longdash",
+                                   "targeted (no uncertainty)" = "solid",
                                    "targeted (SDMs)" = "dotted",
                                    "targeted (ESMs)" = "dotdash",
-                                   "complementing" = "solid",
-                                   "complementing (all PAs)" = "twodash",
+                                   "additive" = "solid",
+                                   "additive (all PAs)" = "twodash",
                                    "prevention" = "solid",
                                    "prevention (all PAs)" = "twodash",
                                    "prevention (all drivers)" = "dotted"),
@@ -835,8 +838,8 @@ ggplot()+
                                    "targeted (no uncertainty)" = 0.8,
                                    "targeted (SDMs)" = 1,
                                    "targeted (ESMs)" = 1,
-                                   "complementing" = 1.5,
-                                   "complementing (all PAs)" = 1,
+                                   "additive" = 1.5,
+                                   "additive (all PAs)" = 1,
                                    "prevention" = 1.5,
                                    "prevention (all PAs)" = 1,
                                    "prevention (all drivers)" = 1),
@@ -1049,3 +1052,50 @@ ggsave("_figures/Richness_allTaxa_features_100.png",
 # terra::plot(richness_100)
 # dev.off()
 
+#- - - - - - - - - - - - - - - - - - - - - -
+## Compare with uncertainty maps ####
+
+certainty <- read_delim(paste0(zonation_dir, "/target_grW/certainty.txt"), col_names = c("ID", "weight", "filename"))
+certainty_10 <- read_delim(paste0(zonation_dir, "/target_10_grW/certainty_10.txt"), col_names = c("ID", "weight", "filename"))
+certainty_100 <- read_delim(paste0(zonation_dir, "/target_100_grW/certainty_100.txt"), col_names = c("ID", "weight", "filename"))
+
+features <- read_delim(paste0(zonation_dir, "/target_grW/features.txt"))
+
+uncertainty <- lapply(unique(features$group), function(x){
+  temp_certainty <- certainty %>% filter(ID %in% (features %>% filter(group == x) %>% pull(condition)))
+  temp_rast <- terra::rast(paste0(zonation_dir, "/data/", temp_certainty$filename))
+  temp_rast <- terra::app(temp_rast, sum, na.rm=TRUE)
+  names(temp_rast) <- str_extract(temp_certainty$filename[1], "(?<=\\.\\./data/)[^/]+")
+  temp_rast
+})
+uncertainty <- do.call(c, uncertainty)
+
+#terra::plot(uncertainty)
+terra::writeRaster(uncertainty, paste0("_results/_Maps/Uncertainty_allTaxa_features.tif"), overwrite=TRUE)
+
+p_uncertainty <- uncertainty
+p_uncertainty[p_uncertainty==0] <- NA
+
+# create a plot for each layer
+plots <- map(names(p_uncertainty), ~ {
+  ggplot() +
+    ggtitle(.x)+
+    geom_spatraster(data = p_uncertainty[[.x]], mask_projection = TRUE) +
+    scale_x_continuous(expand = c(0,0)) +
+    scale_y_continuous(expand = c(0,0)) +
+    scale_fill_viridis_c(na.value = "white", name = "", option = "E") +
+    theme_bw() +
+    theme(axis.title = element_blank(),
+          axis.text = element_blank(),
+          axis.ticks = element_blank(),
+          panel.border = element_blank(),
+          strip.text = element_text(size = 15),
+          strip.background = element_blank(),
+          legend.text = element_text(size = 15),
+          title = element_text(size = 25))
+})
+
+# arrange plots
+wrap_plots(plots, ncol = 3)
+ggsave(paste0("_figures/Uncertainty_allTaxa_features.png"),
+       height = 20, width = 20)

@@ -288,7 +288,7 @@ protect_stack
 
 # calculate sum for IUCN categories Ia-VI
 protect_stack[protect_stack==0,] <- NA
-protect_stack$PA_coverage <- mean(protect_stack, na.rm=TRUE) #not assigned and not reported are overlapping
+protect_stack$PA_coverage <- sum(protect_stack, na.rm=TRUE) #not assigned and not reported are overlapping
 protect_stack$IUCN_coverage <- sum(subset(protect_stack, names(protect_stack) %in% c("Ia", "Ib", "II", "III", "IV", "V", "VI")), na.rm=TRUE)
 protect_stack$PA <- ifelse(values(protect_stack$PA_coverage) > 0.5 & !is.na(values(protect_stack$PA_coverage)), 1, 0)
 protect_stack$IUCN_PA <- ifelse(values(protect_stack$IUCN_coverage) > 0.5 & !is.na(values(protect_stack$IUCN_coverage)), 1, 0)
@@ -496,7 +496,7 @@ ggsave(paste0("_figures/Degradation_drivers_summed_POR.png"),
 
 zonation_dir <- "D:/EIE_Macroecology/_students/Romy/SoilBioPrio_Zonation/POR"
 
-approaches <- c("target", "complement", "prevent")
+approaches <- c("target", "additive", "prevent")
 species_numbers <- c("", "_10", "_100")
 species_uncertainties <- c("", "_noCert")
 group_weights <- c("", "_grW")
@@ -526,19 +526,18 @@ for(zonation_scenario in zonation_scenarios){
       if(str_detect(zonation_scenario, "_100")){
         cat(paste0("feature list file = features_100.txt"), "\n")
         if(str_detect(zonation_scenario, "grW")) cat(paste0("weight groups file = group_weights_100.txt"), "\n")
+        if(!(str_detect(zonation_scenario, "_noCert"))) cat(paste0("condition link file = certainty_100.txt"), "\n")
       } else {
         cat(paste0("feature list file = features_10.txt"), "\n")
         if(str_detect(zonation_scenario, "grW")) cat(paste0("weight groups file = group_weights_10.txt"), "\n")
+        if(!(str_detect(zonation_scenario, "_noCert"))) cat(paste0("condition link file = certainty_10.txt"), "\n")
       }
     } else {
       cat(paste0("feature list file = features.txt"), "\n")
       if(str_detect(zonation_scenario, "grW")) cat(paste0("weight groups file = group_weights.txt"), "\n")
+      if(!(str_detect(zonation_scenario, "_noCert"))) cat(paste0("condition link file = certainty.txt"), "\n")
     }
     cat("zero mode = \"all\"", "\n")
-    
-    if(!(str_detect(zonation_scenario, "_noCert"))){
-      cat(paste0("condition link file = certainty.txt"), "\n")
-    }
     
     if(approach != approaches[1]){
       if(str_detect(zonation_scenario, "allPA")) { 
@@ -585,8 +584,8 @@ for(zonation_scenario in zonation_scenarios){
         file.copy(paste0("_results/Zonation/group_weights_100.txt"),
                   paste0(zonation_dir, "/", zonation_scenario, "/group_weights_100.txt"))
       if(!str_detect(zonation_scenario, "_noCert"))
-        file.copy(paste0("_results/Zonation/certainty.txt"),
-                  paste0(zonation_dir, "/", zonation_scenario, "/certainty.txt"))
+        file.copy(paste0("_results/Zonation/certainty_100.txt"),
+                  paste0(zonation_dir, "/", zonation_scenario, "/certainty_100.txt"))
       
     } else {
       file.copy(paste0("_results/Zonation/features_10.txt"),
@@ -595,8 +594,8 @@ for(zonation_scenario in zonation_scenarios){
         file.copy(paste0("_results/Zonation/group_weights_10.txt"),
                   paste0(zonation_dir, "/", zonation_scenario, "/group_weights_10.txt"))
       if(!str_detect(zonation_scenario, "_noCert"))
-        file.copy(paste0("_results/Zonation/certainty.txt"),
-                  paste0(zonation_dir, "/", zonation_scenario, "/certainty.txt"))
+        file.copy(paste0("_results/Zonation/certainty_10.txt"),
+                  paste0(zonation_dir, "/", zonation_scenario, "/certainty_10.txt"))
     }
     
   } else {
@@ -642,7 +641,7 @@ for (zonation_scenario in zonation_scenarios) {
   if(str_detect(zonation_scenario, "_grW")) temp_options <- paste0(temp_options, "W")
   temp_options <- paste0(temp_options, "g")
   if(str_detect(zonation_scenario, "prevent")) temp_options <- paste0(temp_options, "xX")
-  if(str_detect(zonation_scenario, "complement")) temp_options <- paste0(temp_options, "h")
+  if(str_detect(zonation_scenario, "additive")) temp_options <- paste0(temp_options, "h")
   if(str_detect(zonation_scenario, "prevent")) temp_options <- paste0(temp_options, "h")
   temp_options <- paste0(temp_options, "a")
   
