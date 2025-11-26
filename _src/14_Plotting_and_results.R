@@ -29,7 +29,7 @@ library(doParallel)
 
 # plotting
 library(gridExtra)
-library(colorRamps) #color gradient in Supplementary figure
+library(patchwork)
 
 # NMDS
 library(vegan)
@@ -635,6 +635,8 @@ nmds_scores <- nmds_scores %>%
   left_join(var_imp %>% 
               mutate(Species = rownames(var_imp)) %>%
               dplyr::select(Taxon, Species), by = "Species")
+write_csv(nmds_scores, "_results/NMDS_scores.csv")
+
 # Group median (alternative)
 group_medians <- nmds_scores %>%
   group_by(Taxon) %>%
@@ -646,29 +648,59 @@ fit <- envfit(var_nmds, var_imp %>% dplyr::select(-Taxon), permutations = 999)
 env_vectors <- as.data.frame(scores(fit, display = "vectors"))
 env_vectors$Variable <- rownames(env_vectors)
 
-ggplot(nmds_scores, aes(x = NMDS1, y = NMDS2, color = Taxon)) +
+# load predictor table to get classification of variables
+pred_tab <- readr::read_csv(file=paste0("_data/METADATA_Predictors.csv"))
+env_vectors <- env_vectors %>%
+  left_join(pred_tab %>% dplyr::select(Predictor, Category), by=c("Variable" = "Predictor")) %>%
+  filter(!is.na(Variable))
+env_vectors[env_vectors$Variable=="Clay.Silt","Category"] <- "Soil"
+env_vectors$Variable <- gsub(env_vectors$Variable, pattern = "_Chelsa\\.EU", replacement = "")
+
+# plotting
+p_nmds_taxa <- ggplot(nmds_scores, aes(x = NMDS1, y = NMDS2, color = Taxon)) +
   xlim(c(-1.6, 1))+ ylim(c(-1.5, 1.3))+
-  stat_ellipse(data = nmds_scores, aes(group = Taxon, color = Taxon), #%>% filter(Taxon != "Crassiclitellata")
+  geom_point(aes(shape = Taxon)) +
+  stat_ellipse(aes(group = Taxon, color = Taxon, fill = Taxon),
+               geom = "polygon", alpha = 0.1,
                type = "t", level = 0.95, linetype = 2, linewidth = 1) +
   geom_hline(aes(yintercept = 0), color = "grey80")+
   geom_vline(aes(xintercept = 0), color = "grey80")+
-  geom_text(aes(label = Species), cex = 1) +
-  geom_segment(data = env_vectors,
-               aes(x = 0, y = 0, xend = NMDS1, yend = NMDS2),
-               arrow = arrow(length = unit(0.3, "cm")),
-               color = "black",
-               inherit.aes = FALSE) +
-  geom_text(data = env_vectors,
-            aes(x = NMDS1, y = NMDS2, label = Variable),
-            color = "black", vjust = -0.5, inherit.aes = FALSE)+
-  geom_point(data = group_medians, aes(x = NMDS1, y = NMDS2, fill = Taxon, shape = Taxon), size = 10, color = "black", alpha = 0.5) +
+  geom_point(data = group_medians, aes(x = NMDS1, y = NMDS2, fill = Taxon, shape = Taxon), size = 10, color = "black", alpha = 0.8) +
   scale_shape_manual(values=c(21:23, 21:25))+
   theme_minimal() +
-  labs(title = "NMDS of Taxa based on Environmental Variable Importance",
-       x = "NMDS1",
-       y = "NMDS2")+
+  labs(title = "(a) NDMS of Northern Portugal",
+       x = "",
+       y = "")+
   theme(panel.grid = element_blank())
-ggsave("_figures/NMDS_varImp.png")
+p_nmds_taxa
+
+p_nmds_env <- ggplot(nmds_scores, aes(x = NMDS1, y = NMDS2)) +
+  geom_hline(aes(yintercept = 0), color = "grey80")+
+  geom_vline(aes(xintercept = 0), color = "grey80")+
+  geom_segment(data = env_vectors,
+               aes(x = 0, y = 0, xend = NMDS1, yend = NMDS2, color = Category),
+               arrow = arrow(length = unit(0.3, "cm")),
+               inherit.aes = FALSE) +
+  geom_text(data = env_vectors,
+            aes(x = NMDS1, y = NMDS2, label = Variable, color = Category), 
+            hjust = 0.9, vjust = -1, inherit.aes = FALSE, cex = 3)+
+  scale_shape_manual(values=c(21:23, 21:25))+
+  xlim(c(-0.45, 0.45))+
+  ylim(c(-0.35, 0.35))+
+  theme_minimal() +
+  labs(title = "(b) Northern Portugal",
+       x = "",
+       y = "")+
+  theme(panel.grid = element_blank())
+p_nmds_env
+  
+design <- "AAAB
+AAAB
+AAA#
+AAA#"
+ggsave("_figures/NMDS_varImp.png",
+       p_nmds_taxa + p_nmds_env + plot_layout(design = design),
+       width = 12, height = 7)
 
 
 #- - - - - - - - - - - - - - - - - - - - - -
