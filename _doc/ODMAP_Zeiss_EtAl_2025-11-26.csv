@@ -1,0 +1,87 @@
+section,subsection,element,Value
+Overview,Authorship,Study title,Distribution of soil taxa across Northern Portugal
+Overview,Authorship,Author names,Romy Zeiss; Carlos Antonio Guerra; Nico Eisenhauer
+Overview,Authorship,Contact ,romyzeiss@gmail.com
+Overview,Authorship,Study link,
+Overview,Model objective,Model objective,Mapping and interpolation
+Overview,Model objective,Target output,Maps of relative probability of presence and model uncertainty
+Overview,Focal Taxon,Focal Taxon,"Bacteria, Crassiclitellata, Fungi, Nematoda, Protists, other Eukaryota"
+Overview,Location,Location, Northern Portugal
+Overview,Scale of Analysis,Spatial extent,"-8.882418, -6.190751, 40.58882, 42.15549 (xmin, xmax, ymin, ymax)"
+Overview,Scale of Analysis,Spatial resolution,~1 km² (0.008333333 degree)
+Overview,Scale of Analysis,Temporal extent,2015 (datasets from different time periods between 1970-2025)
+Overview,Scale of Analysis,Temporal resolution,
+Overview,Scale of Analysis,Boundary,political
+Overview,Biodiversity data,Observation type,field survey; standardised monitoring data
+Overview,Biodiversity data,Response data type,point occurrence; presence/absence
+Overview,Predictors,Predictor types,climatic; edaphic; habitat; topographic
+Overview,Hypotheses,Hypotheses,"Soil organisms are shown to be driven by climatic, topographic, habitat and edaphic factors. The main drivers of their distributions are (1) soil moisture, which is related to the availability of water through precipitation and can also be expressed as aridity (proportion of precipitation to evapotranspiration), (2) chemical and physical soil properties, such as pH, cation and heavy metal concentrations as well as soil texture, but also (3) the amount of organic carbon in soil that serves as resource for earthworms. In addition, (4) topographic factors were shown to drive large-scale distribution of many organisms including soil-related ones.
+
+We included the following variables to represent climatic factors: Aridity Index, Mean annual precipitation (MAP), Mean annual temperature (MAT), and Snow cover (i.e., number of days with snow cover).  As habitat factors, we decided on the proportion of area covered by different land-use types, namely Agriculture, coniferous and deciduous Forest, Pastures, and Shrubland. In addition, we included Distance to urban areas, NDVI, and Population Density in our models. To account for topographic factors, we included Aspect (i.e., direction of a slope), Elevation, Slope, Distance to coast, and Distance to rivers. Finally, edaphic factors are depicted by Cation exchange capacity (CEC), soil texture expressed as Clay+Silt content, concentration of Copper (Cu), Mercury (Hg), Nitrogen (N), and Phosphorus (P),  as well as soil moisture, pH in H20, and content of Soil organic carbon (SOC)."
+Overview,Assumptions,Model assumptions,"Species-environment (pseudo-) equilibrium, No observation bias issues, Independence of species observations, Availability of all important predictors, Predictors are free of error, Niche stability/constancy & niche conservatism, No other extrapolation issues"
+Overview,Algorithms,Modelling techniques,biomod; maxent
+Overview,Algorithms,Model complexity,
+Overview,Algorithms,Model averaging,"For species with at least 100 records (i.e., present in at least 100 4 km² grid cells), we performed BIOMOD ensemble modeling using all 12 available algorithms to estimate weighted average probability of presence (TSS as evaluation criteria; Thuiller et al., 2003; 2009). The 12 available algorithms are ANN, CTA, FDA; GAM, GLM, MARS, MAXENT, MAXNET, SRE, RF, RFd, and XGBoost. For species with at least 10 records but less than 100 records, we performed Ensembles of Small Models (ESM; Breiner et al., 2015; 2018) using two complementary algorithms, namely GLM, and MaxEnt and estimated weighted average probability of presence (TSS as evaluation criteria)."
+Overview,Workflow,Model workflow,"Prior to model building, we standardized all predictor variables and used variance inflation (VIF) analysis to avoid highly correlated variables. We only considered variables with VIF<10. To avoid overfitting, we performed Principal Component Analysis (PCA) to reduce the number of predictor variables while maintaining the environmental heterogeneity. We included all axes that are needed to receive 80% of explained variance, that is the first 11 axes. Model fitting was done automatically as much as possible. In addition, we generated 1,000 individual background data for the models to increase their performances (i.e., randomly sampled pseudo-absences). Predictive model performance was assessed using TSS,  AUC(ROC), and Kappa."
+Overview,Software,Software,R version 4.3.0 (R Core Team 2016). RStudio version 2023.06.0 (RStudio Team 2020). ArcGIS version 10.7.1 (Bajjali 2018).
+Overview,Software,Code availability,The code is available at GitHub (https://github.com/JeMaNd-r/Atlas_Portugal).
+Overview,Software,Data availability,The input data are available at the Data Repository if not indicated differently.
+Data,Biodiversity data,Taxon names,"We included soil taxa that were present in at least 10 grid cells (i.e., sampling sizes; cell size: ~1 km²) in Norther Portugal."
+Data,Biodiversity data,Taxonomic reference system,"Catalogue of Life, Encyclopedia of Life (as given by Global Names Verifier implementedn the taxize package in R; see Global Names Architecture)"
+Data,Biodiversity data,Ecological level,species; genus; family
+Data,Biodiversity data,Data sources,"Occurrence data were collected in the frame of a regional monitoring project SoilRecon (PTDC/BIA-CBI/2340/2020) from 416 points sampled from October to December 2021 (Carvalho et al., 2025; Duarte et al., 2024). Soil biological properties were estimated in a uniform grid system of 20 x 20 km resolution. Topsoil samples were collected following established protocols (as described in Cano-Diaz et al., 2025). More details are described in the associated manuscript."
+Data,Biodiversity data,Sampling design,"uniform, habitat types nested within uniform grid cells"
+Data,Biodiversity data,Sample size,"Minimum sample size: present in 10 and 100 grid cells (1 km²), respectively."
+Data,Biodiversity data,Clipping,We clipped all data to the political boundary of the NUTS II region Northern Portugal.
+Data,Biodiversity data,Scaling,"Spatial thinning: We defined presence/absence in each 1x1 km grid cell across Northern Portugal based on the respective occurrence records per taxon (i.e., species, genus, or family) using R (terra::rasterize())."
+Data,Biodiversity data,Cleaning,Data filtering: Taxa that had less than 10 occurrence records were excluded from the modeling. Sequencing data was grouped by taxonomy. More information can be found in Zeiss et al. (in Preparation).
+Data,Biodiversity data,Absence data,No true absence data were used.
+Data,Biodiversity data,Background data,"We generated 1,000 random background points within the study area per taxon using the R package biomod2. We followed advice from Barbet-Massin et al. 2012 to calculate model-specific background data that were shown to increase predictive performance."
+Data,Biodiversity data,Errors and biases,"Temporal bias: occurrences were recorded between October and December 2021, that may include seasonal climate variation."
+Data,Data partitioning,Training data,"For Species Distribution Modelling using BIOMOD, we randomly selected 80% of data for model calibration, leaving the remaining 20% for model evaluation in 10-fold cross-validation."
+Data,Data partitioning,Validation data,"The models were evaluated using True Skill Statistic (TSS), area under curve (AUC) for ROC, and Kappa estimate."
+Data,Data partitioning,Test data,"We randomly selected 20% of our data for model evaluation (10-fold cross-validation), and did not validate the predictions with an independent dataset."
+Data,Predictor variables,Predictor variables,"We selected 25 predictors based on our understanding of the ecology of the earthworms. Four climatic variables: aridity index, mean annual precipitation (MAP), mean annual temperature (MAT), and snow cover (i.e., number of days with snow cover). Eight habitat factors: five land-use types (agriculture, coniferous and deciduous forest, pastures, and shrubland), NDVI, distance to urban areas, and population density in our models. Five topographic variables: elevation, aspect (i.e., direction of a slope), slope, as well as distance to coast, and distance to rivers. And eight edaphic factors: cation exchange capacity (CEC), soil texture expressed as clay+silt content, concentration of copper (Cu), mercury (Hg), and phosphorus (P), as well as soil moisture, pH in H20, content of soil organic carbon (SOC)."
+Data,Predictor variables,Data sources,Information on the data source for each environmental variable are given in the paper. We downloaded all data from the respective databases listed in Zeiss et al. (2024) and Zeiss et al. (in Preparation).
+Data,Predictor variables,Spatial extent,"32, 75, -7, 53 (xmin, xmax, ymin, ymax)"
+Data,Predictor variables,Spatial resolution,"between 25m (Slope) and 1km (e.g., NDVI)"
+Data,Predictor variables,Coordinate reference system,"WGS 1984, EPSG:4326"
+Data,Predictor variables,Temporal extent,Between 1981 and 2021
+Data,Predictor variables,Temporal resolution,"Time periods of data collection are ranging from 1 year (1 sampling campaign) to 11 years, and from hourly measures (e.g. CHELSA climate variables) to yearly measures (e.g. CORINE land cover data). For time series, the mean value of the yearly measurements was calculated using ArcGIS."
+Data,Predictor variables,Data processing,"Environmental layers were downscaled to ~1 km² using the ArcGIS function Zonal Statistics, or the R function terra::project() as described in Zeiss et al. (2024)."
+Data,Predictor variables,Errors and biases,Spatial bias: Data gaps in few layers for certain grid cells. Temporal issues: Environmental data do not reflect sampling conditions due to strong variation in sampling periods and missing detail information at and on sampling times.
+Data,Predictor variables,Dimension reduction,Predictor variables were standardized and we used variance inflation (VIF) analysis to avoid highly correlated variables. We only included weakly correlated variables (VIF<10) in the final Species Distribution Models.
+Data,Transfer data,Data sources,
+Data,Transfer data,Spatial extent,
+Data,Transfer data,Spatial resolution,
+Data,Transfer data,Temporal extent,
+Data,Transfer data,Temporal resolution,
+Data,Transfer data,Models and scenarios,
+Data,Transfer data,Data processing,
+Data,Transfer data,Quantification of Novelty,
+Model,Variable pre-selection,Variable pre-selection,We selected variables according to the literature (see main text).
+Model,Multicollinearity,Multicollinearity,We removed variables with variable inflation factor VIF>10.
+Model,Model settings,Model settings (fitting),"biomod: models (GLM, GBM, GAM, CTA, ANN, FDA, MARS, RF, RFd, SRE, MAXENT, MAXNET, XGBOOST), model.options (algorithm-specific settings (see R script)), CV.nb.rep (10), CV.perc (0.8), metric.eval (""TSS""), scale.models (FALSE), CV.do.full.models (FALSE), em.by (""all""), metric.select (""TSS""), metric.select.thresh (NULL), em.algo (c(""EMcv"", ""EMwmean"")), EMwmean.decay (""proportional""), var.import (0); maxent: no settings provided"
+Model,Model settings,Model settings (extrapolation),
+Model,Model estimates,Coefficients,mean posterior
+Model,Model estimates,Parameter uncertainty,
+Model,Model estimates,Variable importance,(done using separately performed MaxEnt models)
+Model,Model selection - model averaging - ensembles,Model selection,"For species with at least 100 presence records, we used the R package ""biomod2"" to create an ensemble model with all ten available algorithms (GLM, GBM, GAM, CTA, ANN, SRE, FDA, MARS, RF, RFd, XGBOOST, MAXENT, and MAXNET). For species with at least 10 records but less than 100 records, we performed Ensembles of Small Models (ESM, R package ""ecospat"") using three complementary algorithms, namely GLM and MaxEnt."
+Model,Model selection - model averaging - ensembles,Model averaging,weighted mean probability
+Model,Model selection - model averaging - ensembles,Model ensembles,see R script
+Model,Analysis and Correction of non-independence,Spatial autocorrelation,
+Model,Analysis and Correction of non-independence,Temporal autocorrelation,
+Model,Analysis and Correction of non-independence,Nested data,
+Model,Threshold selection,Threshold selection,We transformed probability of presence <500 to 0 and kept higher probabilities as continuous values.
+Assessment,Performance statistics,Performance on training data,TSS
+Assessment,Performance statistics,Performance on validation data,TSS
+Assessment,Performance statistics,Performance on test data,
+Assessment,Plausibility check,Response shapes,
+Assessment,Plausibility check,Expert judgement,Visual inspection of the richness per taxonomic group based on mapped prediction was supported by findings of previous studies.
+Prediction,Prediction output,Prediction unit,"Continuous predictions of occurrence probability per species (for probabilities >499, else assumed absence)"
+Prediction,Prediction output,Post-processing,Output maps of occurrence probability are weighed by uncertainty maps (see below)
+Prediction,Uncertainty quantification,Algorithmic uncertainty,Coefficient of variation as provided by ensemble modeling
+Prediction,Uncertainty quantification,Input data uncertainty,
+Prediction,Uncertainty quantification,Parameter uncertainty,
+Prediction,Uncertainty quantification,Scenario uncertainty,
+Prediction,Uncertainty quantification,Novel environments,
