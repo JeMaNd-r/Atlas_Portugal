@@ -107,8 +107,8 @@ Zeiss, R., Kullberg, P., Mikkonen, N., Calderon-Sanou, I., Cano-Díaz, C., Costa
 
 #### _doc
 Documentation: taxonomic backbone used in this study, and ODMAP protocol on SDM procedure.
-* ODMAP_Zeiss_et_al_2023-06-28.csv
-  * ODMAP protocol summarizing settings and input data of Species Distribution Modeling. Version: 2023-06-28.
+* ODMAP_Zeiss_EtAl_2025-11-26.csv
+  * ODMAP protocol summarizing settings and input data of Species Distribution Modeling. Version: 2025-11-26.
 
 
 #### _src
