@@ -6,7 +6,7 @@
 #                                           #
 #- - - - - - - - - - - - - - - - - - - - - -#
 
-zonation_dir <- "../SoilBioPrio_Zonation/POR"
+zonation_dir <- "../DATA_SoilBioPrio_Zonation/POR"
 list.files(zonation_dir, include.dirs = TRUE)
 
 library(terra)
@@ -603,16 +603,58 @@ p_main
 ggsave(paste0("_figures/Zonation_priorities_mainScenarios_POR.png"),
        width = 10, height = 10)
 
+protected_layer <- priority_rast_c$additive_allPA
+protected_layer[protected_layer < 5] <- NA
+protected_layer <- as.factor(protected_layer)
+
+# Assign a level table
+levels(protected_layer) <- data.frame(
+  ID = 5:max(values(protected_layer), na.rm = TRUE),
+  label = "Protected areas"
+)
+
+protected_layer_IUCN <- priority_rast_c$additive
+protected_layer_IUCN[protected_layer_IUCN < 5] <- NA
+protected_layer_IUCN <- as.factor(protected_layer_IUCN)
+
+# Assign a level table
+levels(protected_layer_IUCN) <- data.frame(
+  ID = 5:max(values(protected_layer_IUCN), na.rm = TRUE),
+  label = "IUCN PA"
+)
+
+p_sum_priorities <- sum(priority_rast_c>=3)
+p_sum_priorities$percent <- p_sum_priorities / terra::nlyr(priority_rast_c)
+p_sum_priorities$percent_f <- app(p_sum_priorities$percent, function(x) {
+  cut(x,
+      breaks = c(0, 0.01, 0.025, 0.1, 0.25, 0.5, 0.75, 0.98, 1),
+      labels = c("0", "2.5% (1 scenario)", "2.5-10% (2-5)", "10-25% (5-12)", "25-50% (12-24)", "50-75% (24-36)", "75-100% (36-48)", "100% (48)"))
+})
+p_sum_priorities$percent_f <- as.factor(p_sum_priorities$percent_f)
+levels(p_sum_priorities$percent_f) <- data.frame(
+  ID = 1:8,
+  labels = c("0", "2.5% (1 scenario)", "2.5-10% (2-5)", "10-25% (5-12)", "25-50% (12-24)", "50-75% (24-36)", "75-100% (36-48)", "100% (48)"))
+
+# colors
+my_colors <- c( "#fdae61", "#ffdd00",  "#a6d96a", "#5dc963", "#21918c", "#3b528b", "#440154", "#9e0142", "grey80", "grey60")
+names(my_colors) <- categories <- c("0", "2.5% (1 scenario)", "2.5-10% (2-5)", "10-25% (5-12)", "25-50% (12-24)", "50-75% (24-36)", "75-100% (36-48)", "100% (48)", "Protected areas", "IUCN PA")
 p_stacked <- ggplot()+
   ggtitle("Northern Portugal")+
-  tidyterra::geom_spatraster(data = sum(priority_rast_c>=3),
+  tidyterra::geom_spatraster(data = p_sum_priorities$percent_f,
                              mask_projection=TRUE)+
+  # tidyterra::geom_spatraster(data = protected_layer,
+  #                            mask_projection=TRUE, alpha = 0.2)+
+  # tidyterra::geom_spatraster(data = protected_layer_IUCN,
+  #                            mask_projection=TRUE ,alpha = 0.5)+
+  # scale_fill_gradient(na.value = "transparent",
+  #                     name = "Scenarios",
+  #                     low = "#B3E0A6",
+  #                     high = "#24693D")+
+  scale_fill_manual(values = my_colors, 
+                    na.value = "transparent",
+                    name = "Agreement") +
   scale_x_continuous(expand = c(0,0))+
   scale_y_continuous(expand = c(0,0))+
-  scale_fill_gradient(na.value = "white",
-                      name = "Scenarios",
-                      low = "#B3E0A6",
-                      high = "#24693D")+
   theme_bw()+
   theme(axis.title = element_blank(),
         axis.text = element_text(size = 15),
