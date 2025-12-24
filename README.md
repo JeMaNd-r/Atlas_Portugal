@@ -2,6 +2,7 @@
 Priorities for nature conservation of soil biodiversity in Northern Portugal
 
 The following code used occurrence data and environmental variables to predict Species Distribution Models (SDMs) for soil organisms across Northern Portugal. In addition, it prepares for and summarizes output from prioritization analysis using the software Zonation.
+An updated and more streamlined version of the code can be found in the repository [SoilBioPrio_GER](https://github.com/JeMaNd-r/SoilBioPrio_GER). 
 
 
 ## Description
